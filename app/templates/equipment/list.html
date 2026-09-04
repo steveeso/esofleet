@@ -8,12 +8,13 @@
     <div class="subtitle">{{ items|length }} item{{ '' if items|length == 1 else 's' }}</div>
   </div>
   <div class="actions">
+    <a href="{{ url_for('equipment.import_form') }}" class="btn">Import CSV</a>
     <a href="{{ url_for('equipment.new') }}" class="btn btn-primary">+ Add equipment</a>
   </div>
 </div>
 
 <form class="filter-bar" method="get">
-  <input type="text" name="q" placeholder="Search unit, make, model, serial number, plate, assignee…" value="{{ q }}">
+  <input type="text" name="q" placeholder="Search unit, make, model, serial number, registration number, assignee…" value="{{ q }}">
   <select name="status" onchange="this.form.submit()">
     <option value="">All statuses</option>
     {% for s in statuses %}
@@ -34,7 +35,7 @@
         <th>Unit</th>
         <th>Equipment</th>
         <th>Serial number</th>
-        <th>Plate</th>
+        <th>Registration number</th>
         <th>Meter</th>
         <th>Assigned to</th>
         <th>Status</th>

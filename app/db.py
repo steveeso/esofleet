@@ -64,6 +64,7 @@ def _migrate(db):
     _ensure_column(db, "equipment_info_items", "quantity", "REAL")
     _ensure_column(db, "equipment_catalog_items", "quantity_unit", "TEXT")
     _ensure_column(db, "equipment_info_items", "quantity_unit", "TEXT")
+    _ensure_column(db, "equipment", "plate_number", "TEXT")
 
     db.commit()
 

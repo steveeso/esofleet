@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Import equipment{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Import equipment from CSV</h1>
+    <div class="subtitle">Add multiple items at once</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('equipment.list_equipment') }}" class="btn">Cancel</a>
+  </div>
+</div>
+
+<div class="panel" style="padding: 24px; max-width: 640px;">
+  <p style="margin-top: 0;">
+    <span class="mono">unit_number</span> and <span class="mono">equipment_type</span> are
+    required. Equipment type must match one of your existing types
+    ({{ equipment_types|join(', ') }}) — for a cell with more than one type
+    separated by <span class="mono">|</span>, the first is used and the rest
+    are kept as an extra field. Everything else is optional, including
+    <span class="mono">make</span> and <span class="mono">model</span>.
+  </p>
+  <p>
+    A handful of common column names are recognized automatically, so you
+    don't need to rename anything first: <span class="mono">Name</span> →
+    unit number, <span class="mono">Types</span> → equipment type,
+    <span class="mono">Manufacturer</span> → make, <span class="mono">VIN
+    Number</span> → serial number, <span class="mono">ICBC Registration
+    Number</span> → registration number, <span class="mono">Description</span> →
+    notes. A <span class="mono">Maintenance Info</span> column is imported as
+    unit-specific info, and if a file has both a VIN Number and a separate
+    Serial Number that don't match, the Serial Number is kept as an extra
+    field.
+  </p>
+  <p><a href="{{ url_for('equipment.import_template') }}">Download a CSV template</a> with this app's own column headers and an example row.</p>
+
+  <form method="post" action="{{ url_for('equipment.import_preview') }}" enctype="multipart/form-data" style="margin-top: 18px;">
+    <div class="field">
+      <label for="csv_file">CSV file</label>
+      <input type="file" id="csv_file" name="csv_file" accept=".csv,text/csv" required>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Preview import</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

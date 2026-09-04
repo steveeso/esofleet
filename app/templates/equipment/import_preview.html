@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Import preview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Import preview</h1>
+    <div class="subtitle">{{ valid_count }} of {{ rows|length }} row{{ '' if rows|length == 1 else 's' }} ready to import</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('equipment.import_form') }}" class="btn">Start over</a>
+  </div>
+</div>
+
+<div class="panel">
+  <table>
+    <thead>
+      <tr>
+        <th>Row</th>
+        <th>Unit</th>
+        <th>Type</th>
+        <th>Equipment</th>
+        <th>Status</th>
+        <th>Meter</th>
+        <th>Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="mono">{{ r.line_no }}</td>
+        <td class="mono">{{ r.data.unit_number or '—' }}</td>
+        <td>{{ r.data.equipment_type or '—' }}</td>
+        <td>{{ r.data.year or '' }} {{ r.data.make }} {{ r.data.model }}</td>
+        <td>{{ r.data.status|replace('_', ' ')|capitalize }}</td>
+        <td class="mono">{{ '{:,}'.format(r.data.meter_reading) }} {{ r.data.meter_type }}</td>
+        <td>
+          {% if r.valid %}
+          <span class="status ok"><span class="dot"></span>OK</span>
+          {% else %}
+          <span class="status overdue"><span class="dot"></span>{{ r.errors|length }} issue{{ '' if r.errors|length == 1 else 's' }}</span>
+          <ul class="import-errors">
+            {% for e in r.errors %}<li>{{ e }}</li>{% endfor %}
+          </ul>
+          {% endif %}
+          {% if r.info_items or r.custom_fields %}
+          <div class="field-hint" style="margin-top: 4px;">
+            +
+            {%- for item in r.info_items %} {{ item.label }}{% if not loop.last or r.custom_fields %},{% endif %}{% endfor -%}
+            {%- for field in r.custom_fields %} {{ field.label }}{% if not loop.last %},{% endif %}{% endfor -%}
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<form method="post" action="{{ url_for('equipment.import_confirm') }}" style="margin-top: 18px;">
+  <input type="hidden" name="csv_text" value="{{ csv_text }}">
+  {% if valid_count %}
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Import {{ valid_count }} item{{ '' if valid_count == 1 else 's' }}</button>
+    <a href="{{ url_for('equipment.list_equipment') }}" class="btn">Cancel</a>
+  </div>
+  {% if valid_count < rows|length %}
+  <div class="field-hint" style="margin-top: 8px;">Rows with issues will be skipped — fix them in your CSV and re-upload if you want everything included.</div>
+  {% endif %}
+  {% else %}
+  <div class="empty-state">
+    <h3>Nothing to import</h3>
+    <div>Every row has at least one issue — fix your CSV and try again.</div>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

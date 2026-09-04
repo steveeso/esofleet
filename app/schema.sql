@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS equipment (
     year INTEGER,
     serial_number TEXT UNIQUE,
     license_plate TEXT,
+    plate_number TEXT,
     fuel_type TEXT CHECK (fuel_type IN ('gasoline', 'diesel', 'propane', 'electric', 'other')),
     meter_type TEXT NOT NULL DEFAULT 'kilometers' CHECK (meter_type IN ('kilometers', 'hours', 'miles')),
     meter_reading INTEGER NOT NULL DEFAULT 0,

@@ -39,7 +39,10 @@
           <div><div class="info-label">Serial number</div><div class="info-value mono">{{ item['serial_number'] or '—' }}</div></div>
           {% endif %}
           {% if 'license_plate' in enabled_fields %}
-          <div><div class="info-label">Plate</div><div class="info-value mono">{{ item['license_plate'] or '—' }}</div></div>
+          <div><div class="info-label">Registration number</div><div class="info-value mono">{{ item['license_plate'] or '—' }}</div></div>
+          {% endif %}
+          {% if 'plate_number' in enabled_fields %}
+          <div><div class="info-label">License plate</div><div class="info-value mono">{{ item['plate_number'] or '—' }}</div></div>
           {% endif %}
           {% if 'fuel_type' in enabled_fields %}
           <div><div class="info-label">Fuel type</div><div class="info-value">{{ item['fuel_type']|capitalize if item['fuel_type'] else '—' }}</div></div>
