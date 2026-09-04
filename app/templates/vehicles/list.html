@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Vehicles{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Vehicles</h1>
+    <div class="subtitle">{{ vehicles|length }} vehicle{{ '' if vehicles|length == 1 else 's' }}</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('vehicles.new') }}" class="btn btn-primary">+ Add vehicle</a>
+  </div>
+</div>
+
+<form class="filter-bar" method="get">
+  <input type="text" name="q" placeholder="Search unit, make, model, VIN, plate, driver…" value="{{ q }}">
+  <select name="status" onchange="this.form.submit()">
+    <option value="">All statuses</option>
+    {% for s in statuses %}
+    <option value="{{ s }}" {{ 'selected' if s == status }}>{{ s|replace('_', ' ')|capitalize }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Search</button>
+  {% if q or status %}
+  <a href="{{ url_for('vehicles.list_vehicles') }}" class="btn">Clear</a>
+  {% endif %}
+</form>
+
+<div class="panel">
+  {% if vehicles %}
+  <table>
+    <thead>
+      <tr>
+        <th>Unit</th>
+        <th>Vehicle</th>
+        <th>VIN</th>
+        <th>Plate</th>
+        <th>Mileage</th>
+        <th>Driver</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in vehicles %}
+      <tr class="row-link" onclick="window.location='{{ url_for('vehicles.detail', vehicle_id=v['id']) }}'">
+        <td class="mono">{{ v['unit_number'] }}</td>
+        <td>{{ v['year'] }} {{ v['make'] }} {{ v['model'] }}</td>
+        <td class="mono">{{ v['vin'] or '—' }}</td>
+        <td class="mono">{{ v['license_plate'] or '—' }}</td>
+        <td class="mono">{{ '{:,}'.format(v['mileage']) }} mi</td>
+        <td>{{ v['assigned_driver'] or '—' }}</td>
+        <td><span class="status {{ v['status'] }}"><span class="dot"></span>{{ v['status']|replace('_', ' ')|capitalize }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <h3>No vehicles found</h3>
+    <div>Try a different search, or add the first vehicle to the fleet.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

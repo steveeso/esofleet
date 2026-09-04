@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Users</h1>
+    <div class="subtitle">People who can access Fleet Ops</div>
+  </div>
+</div>
+
+<div class="detail-grid" style="grid-template-columns: 1fr 320px;">
+  <div class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Added</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u['username'] }}</td>
+          <td><span class="status {{ 'active' if u['role'] == 'admin' else 'in_shop' }}"><span class="dot"></span>{{ u['role']|capitalize }}</span></td>
+          <td class="mono">{{ u['created_at'] }}</td>
+          <td>
+            {% if u['id'] != g.user['id'] %}
+            <form method="post" action="{{ url_for('users.delete', user_id=u['id']) }}" onsubmit="return confirm('Remove user {{ u['username'] }}?');">
+              <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="padding: 20px;">
+    <h2 class="section-title">Add a user</h2>
+    <form method="post" action="{{ url_for('users.new') }}">
+      <div class="field" style="margin-bottom: 14px;">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required>
+      </div>
+      <div class="field" style="margin-bottom: 14px;">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <div class="field" style="margin-bottom: 16px;">
+        <label for="role">Role</label>
+        <select id="role" name="role">
+          {% for r in roles %}
+          <option value="{{ r }}">{{ r|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Add user</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

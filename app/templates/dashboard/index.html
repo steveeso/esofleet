@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    <div class="subtitle">Fleet overview and upcoming maintenance</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('vehicles.new') }}" class="btn btn-primary">+ Add vehicle</a>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="value">{{ total_vehicles }}</div>
+    <div class="label">Total vehicles</div>
+  </div>
+  <div class="stat-card active">
+    <div class="value">{{ counts.active }}</div>
+    <div class="label">Active</div>
+  </div>
+  <div class="stat-card due_soon">
+    <div class="value">{{ counts.due_soon }}</div>
+    <div class="label">Due soon</div>
+  </div>
+  <div class="stat-card overdue">
+    <div class="value">{{ counts.overdue }}</div>
+    <div class="label">Overdue</div>
+  </div>
+</div>
+
+<div class="section-header">
+  <h2 class="section-title">Needs attention</h2>
+</div>
+
+<div class="panel">
+  {% if attention %}
+  <table>
+    <thead>
+      <tr>
+        <th>Unit</th>
+        <th>Vehicle</th>
+        <th>Status</th>
+        <th>Next due</th>
+        <th>Mileage</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for vehicle, vstatus, upcoming in attention %}
+      <tr class="row-link" onclick="window.location='{{ url_for('vehicles.detail', vehicle_id=vehicle['id']) }}'">
+        <td class="mono">{{ vehicle['unit_number'] }}</td>
+        <td>{{ vehicle['year'] }} {{ vehicle['make'] }} {{ vehicle['model'] }}</td>
+        <td>
+          <span class="status {{ vstatus }}"><span class="dot"></span>{{ 'Overdue' if vstatus == 'overdue' else 'Due soon' }}</span>
+        </td>
+        <td class="mono">
+          {% if upcoming['next_due_date'] %}{{ upcoming['next_due_date'] }}{% endif %}
+          {% if upcoming['next_due_mileage'] %}{% if upcoming['next_due_date'] %} · {% endif %}{{ '{:,}'.format(upcoming['next_due_mileage']) }} mi{% endif %}
+        </td>
+        <td class="mono">{{ '{:,}'.format(vehicle['mileage']) }} mi</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <h3>All caught up</h3>
+    <div>No vehicles are due or overdue for maintenance right now.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ vehicle['unit_number'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ vehicle['unit_number'] }} — {{ vehicle['year'] }} {{ vehicle['make'] }} {{ vehicle['model'] }}</h1>
+    <div class="subtitle"><span class="status {{ vehicle['status'] }}"><span class="dot"></span>{{ vehicle['status']|replace('_', ' ')|capitalize }}</span></div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('vehicles.edit', vehicle_id=vehicle['id']) }}" class="btn">Edit vehicle</a>
+    <a href="{{ url_for('maintenance.new', vehicle_id=vehicle['id']) }}" class="btn btn-primary">+ Log maintenance</a>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="panel vehicle-summary">
+    <dl>
+      <dt>VIN</dt><dd class="mono">{{ vehicle['vin'] or '—' }}</dd>
+      <dt>Plate</dt><dd class="mono">{{ vehicle['license_plate'] or '—' }}</dd>
+      <dt>Mileage</dt><dd class="mono">{{ '{:,}'.format(vehicle['mileage']) }} mi</dd>
+      <dt>Driver</dt><dd>{{ vehicle['assigned_driver'] or '—' }}</dd>
+      <dt>Notes</dt><dd>{{ vehicle['notes'] or '—' }}</dd>
+    </dl>
+    <div style="padding: 0 18px 18px 18px;">
+      <form method="post" action="{{ url_for('vehicles.delete', vehicle_id=vehicle['id']) }}"
+            onsubmit="return confirm('Remove {{ vehicle['unit_number'] }} and all its maintenance history? This cannot be undone.');">
+        <button type="submit" class="btn btn-danger btn-sm">Remove vehicle</button>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-header">
+      <h2 class="section-title">Maintenance history</h2>
+    </div>
+    <div class="panel">
+      {% if records %}
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Mileage</th>
+            <th>Cost</th>
+            <th>Next due</th>
+            <th>Performed by</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+          <tr>
+            <td class="mono">{{ r['service_date'] }}</td>
+            <td>{{ r['service_type'] }}</td>
+            <td>{{ r['description'] or '—' }}</td>
+            <td class="mono">{{ '{:,}'.format(r['mileage_at_service']) if r['mileage_at_service'] else '—' }}</td>
+            <td class="mono">{{ '${:,.2f}'.format(r['cost']) if r['cost'] else '—' }}</td>
+            <td class="mono">
+              {% if r['next_due_date'] %}{{ r['next_due_date'] }}{% endif %}
+              {% if r['next_due_mileage'] %}{% if r['next_due_date'] %}<br>{% endif %}{{ '{:,}'.format(r['next_due_mileage']) }} mi{% endif %}
+              {% if not r['next_due_date'] and not r['next_due_mileage'] %}—{% endif %}
+            </td>
+            <td>{{ r['performed_by'] or '—' }}</td>
+            <td><a href="{{ url_for('maintenance.edit', vehicle_id=vehicle['id'], record_id=r['id']) }}" class="btn btn-sm">Edit</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <h3>No maintenance logged yet</h3>
+        <div>Add the first service record for this vehicle.</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
