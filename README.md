@@ -173,12 +173,19 @@ Once you're logged in as an admin, you can add further users from the
 ## 7. Notes on this being a proof of concept
 
 - **Secret key:** the app uses a default `SECRET_KEY` for local testing.
-  Before running this anywhere besides your own machine, set the
+  Before running this anywhere besides your own machine — including
+  sharing it with trusted users over Tailscale — set the
   `FLEET_SECRET_KEY` environment variable to a random value.
+- **Debug mode is off by default.** The Werkzeug interactive debugger it
+  enables lets anyone who can reach an unhandled exception run arbitrary
+  Python, which is fine on localhost but not once anyone else can reach
+  the app. Opt in for local development only with `FLASK_DEBUG=1 python
+  run.py` (PowerShell: `$env:FLASK_DEBUG=1; python run.py`).
 - **Dev server:** `python run.py` runs Flask's built-in development server,
-  which is fine for local testing but isn't meant for production hosting.
-  When you're ready to move this to your Linux server, it should run behind
-  a proper WSGI server (e.g. gunicorn) instead.
+  which is fine for local testing or a handful of trusted users (e.g. over
+  Tailscale) but isn't hardened for the open internet. If you ever want it
+  properly production-grade, it should run behind a real WSGI server
+  (e.g. gunicorn) instead.
 - **Database file** lives at `instance/fleet.sqlite`. Back it up before any
   risky changes — there's no undo for deletions yet.
 - **Schema changes are additive.** `schema.sql` only ever creates tables
