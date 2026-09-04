@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Add category' if mode == 'new' else 'Edit category' }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ 'Add category' if mode == 'new' else 'Edit category' }}</h1>
+    <div class="subtitle">Parts Catalog</div>
+  </div>
+</div>
+
+<form method="post" class="panel" style="padding: 24px; max-width: 480px;">
+  <div class="field">
+    <label for="name">Category name *</label>
+    <input type="text" id="name" name="name" placeholder="Filters, Oil Types and Capacities…" value="{{ category.get('name', '') }}" required>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ 'Add category' if mode == 'new' else 'Save changes' }}</button>
+    <a href="{{ url_for('catalog.index', open=category.get('id'), _anchor=('category-' ~ category['id']) if category.get('id') else 'none') }}" class="btn">Cancel</a>
+  </div>
+</form>
+
+{% if mode == 'edit' %}
+<form method="post" action="{{ url_for('catalog.delete_category', category_id=category['id']) }}"
+      onsubmit="return confirm('Delete this category and everything in it? Any equipment linked to its items will lose that link too.');" style="margin-top: 12px;">
+  <button type="submit" class="btn btn-danger">Delete category</button>
+</form>
+{% endif %}
+{% endblock %}

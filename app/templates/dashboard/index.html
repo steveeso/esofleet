@@ -1,73 +1,75 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 
+{% macro sort_th(key, label) %}
+{% set next_dir = 'desc' if sort == key and dir == 'asc' else 'asc' %}
+<th><a href="{{ url_for('dashboard.index', sort=key, dir=next_dir) }}" class="sort-link">{{ label }}{% if sort == key %}<span class="sort-arrow">{{ '▲' if dir == 'asc' else '▼' }}</span>{% endif %}</a></th>
+{% endmacro %}
+
 {% block content %}
 <div class="page-header">
   <div>
     <h1>Dashboard</h1>
-    <div class="subtitle">Fleet overview and upcoming maintenance</div>
+    <div class="subtitle">Equipment overview</div>
   </div>
   <div class="actions">
-    <a href="{{ url_for('vehicles.new') }}" class="btn btn-primary">+ Add vehicle</a>
+    <a href="{{ url_for('equipment.new') }}" class="btn btn-primary">+ Add equipment</a>
   </div>
 </div>
 
 <div class="stat-row">
   <div class="stat-card">
-    <div class="value">{{ total_vehicles }}</div>
-    <div class="label">Total vehicles</div>
+    <div class="value">{{ total_equipment }}</div>
+    <div class="label">Total equipment</div>
   </div>
   <div class="stat-card active">
     <div class="value">{{ counts.active }}</div>
     <div class="label">Active</div>
   </div>
-  <div class="stat-card due_soon">
-    <div class="value">{{ counts.due_soon }}</div>
-    <div class="label">Due soon</div>
+  <div class="stat-card in_shop">
+    <div class="value">{{ counts.in_shop }}</div>
+    <div class="label">In shop</div>
   </div>
-  <div class="stat-card overdue">
-    <div class="value">{{ counts.overdue }}</div>
-    <div class="label">Overdue</div>
+  <div class="stat-card retired">
+    <div class="value">{{ counts.retired }}</div>
+    <div class="label">Retired</div>
   </div>
 </div>
 
 <div class="section-header">
-  <h2 class="section-title">Needs attention</h2>
+  <h2 class="section-title">Equipment</h2>
 </div>
 
 <div class="panel">
-  {% if attention %}
+  {% if items %}
   <table>
     <thead>
       <tr>
-        <th>Unit</th>
-        <th>Vehicle</th>
-        <th>Status</th>
-        <th>Next due</th>
-        <th>Mileage</th>
+        {{ sort_th('unit', 'Unit') }}
+        {{ sort_th('type', 'Equipment type') }}
+        {{ sort_th('equipment', 'Equipment') }}
+        {{ sort_th('fuel', 'Fuel type') }}
+        {{ sort_th('meter', 'Meter') }}
+        {{ sort_th('status', 'Status') }}
       </tr>
     </thead>
     <tbody>
-      {% for vehicle, vstatus, upcoming in attention %}
-      <tr class="row-link" onclick="window.location='{{ url_for('vehicles.detail', vehicle_id=vehicle['id']) }}'">
-        <td class="mono">{{ vehicle['unit_number'] }}</td>
-        <td>{{ vehicle['year'] }} {{ vehicle['make'] }} {{ vehicle['model'] }}</td>
-        <td>
-          <span class="status {{ vstatus }}"><span class="dot"></span>{{ 'Overdue' if vstatus == 'overdue' else 'Due soon' }}</span>
-        </td>
-        <td class="mono">
-          {% if upcoming['next_due_date'] %}{{ upcoming['next_due_date'] }}{% endif %}
-          {% if upcoming['next_due_mileage'] %}{% if upcoming['next_due_date'] %} · {% endif %}{{ '{:,}'.format(upcoming['next_due_mileage']) }} mi{% endif %}
-        </td>
-        <td class="mono">{{ '{:,}'.format(vehicle['mileage']) }} mi</td>
+      {% for item in items %}
+      <tr class="row-link" onclick="window.location='{{ url_for('equipment.detail', equipment_id=item['id']) }}'">
+        <td class="mono">{{ item['unit_number'] }}</td>
+        <td>{{ item['equipment_type'] or '—' }}</td>
+        <td>{{ item['year'] or '' }} {{ item['make'] }} {{ item['model'] }}</td>
+        <td>{{ item['fuel_type']|capitalize if item['fuel_type'] else '—' }}</td>
+        <td class="mono">{{ '{:,}'.format(item['meter_reading']) }} {{ item['meter_type'] }}</td>
+        <td><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|capitalize }}</span></td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% else %}
   <div class="empty-state">
-    <h3>All caught up</h3>
-    <div>No vehicles are due or overdue for maintenance right now.</div>
+    <h3>No equipment yet</h3>
+    <div>Add your first item to get started.</div>
   </div>
   {% endif %}
 </div>

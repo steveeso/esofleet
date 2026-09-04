@@ -3,19 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Fleet{% endblock %} · Fleet Ops</title>
+  <title>{% block title %}Fleet{% endblock %} · EsoFleet</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar">
       <div class="sidebar-brand">
-        Fleet Ops
-        <span class="unit">Vehicle &amp; maintenance tracking</span>
+        EsoFleet
+        <span class="unit">Equipment &amp; maintenance tracking</span>
       </div>
       <nav>
         <a href="{{ url_for('dashboard.index') }}" class="{{ 'active' if request.endpoint == 'dashboard.index' }}">Dashboard</a>
-        <a href="{{ url_for('vehicles.list_vehicles') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('vehicles.') }}">Vehicles</a>
+        <a href="{{ url_for('equipment.list_equipment') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('equipment.') }}">Equipment</a>
+        <a href="{{ url_for('catalog.index') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') }}">Parts Catalog</a>
         {% if g.user and g.user['role'] == 'admin' %}
         <a href="{{ url_for('users.list_users') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('users.') }}">Users</a>
         {% endif %}

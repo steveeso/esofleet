@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Add item' if mode == 'new' else 'Edit item' }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ 'Add item' if mode == 'new' else 'Edit item' }}</h1>
+    <div class="subtitle">{{ category['name'] }} · Parts Catalog</div>
+  </div>
+</div>
+
+<form method="post" class="panel" style="padding: 24px; max-width: 560px;">
+  {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+  <div class="field">
+    <label for="label">Label *</label>
+    <input type="text" id="label" name="label" placeholder="Oil Filter, Engine Oil…" value="{{ item.get('label', '') }}" required>
+  </div>
+  <div class="field">
+    <label for="value">Value</label>
+    <input type="text" id="value" name="value" placeholder="Part number or spec" value="{{ item.get('value', '') or '' }}">
+  </div>
+  <div class="field">
+    <label for="notes">Notes</label>
+    <textarea id="notes" name="notes">{{ item.get('notes', '') or '' }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ 'Add item' if mode == 'new' else 'Save changes' }}</button>
+    <a href="{{ next or url_for('catalog.index', open=category['id'], _anchor='category-' ~ category['id']) }}" class="btn">Cancel</a>
+  </div>
+</form>
+
+{% if mode == 'edit' %}
+<form method="post" action="{{ url_for('catalog.delete_item', item_id=item['id']) }}"
+      onsubmit="return confirm('Delete this item from the catalog? It will be unlinked from every piece of equipment using it, and its alternates will be removed.');" style="margin-top: 12px;">
+  <button type="submit" class="btn btn-danger">Delete from catalog</button>
+</form>
+{% endif %}
+{% endblock %}

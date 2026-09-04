@@ -18,12 +18,13 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
-    from .routers import auth, dashboard, vehicles, maintenance, users
+    from .routers import auth, catalog, dashboard, equipment, maintenance, users
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(dashboard.bp)
-    app.register_blueprint(vehicles.bp)
+    app.register_blueprint(equipment.bp)
     app.register_blueprint(maintenance.bp)
+    app.register_blueprint(catalog.bp)
     app.register_blueprint(users.bp)
 
     return app

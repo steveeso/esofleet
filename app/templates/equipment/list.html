@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Equipment{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Equipment</h1>
+    <div class="subtitle">{{ items|length }} item{{ '' if items|length == 1 else 's' }}</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('equipment.new') }}" class="btn btn-primary">+ Add equipment</a>
+  </div>
+</div>
+
+<form class="filter-bar" method="get">
+  <input type="text" name="q" placeholder="Search unit, make, model, serial number, plate, assignee…" value="{{ q }}">
+  <select name="status" onchange="this.form.submit()">
+    <option value="">All statuses</option>
+    {% for s in statuses %}
+    <option value="{{ s }}" {{ 'selected' if s == status }}>{{ s|replace('_', ' ')|capitalize }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Search</button>
+  {% if q or status %}
+  <a href="{{ url_for('equipment.list_equipment') }}" class="btn">Clear</a>
+  {% endif %}
+</form>
+
+<div class="panel">
+  {% if items %}
+  <table>
+    <thead>
+      <tr>
+        <th>Unit</th>
+        <th>Equipment</th>
+        <th>Serial number</th>
+        <th>Plate</th>
+        <th>Meter</th>
+        <th>Assigned to</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr class="row-link" onclick="window.location='{{ url_for('equipment.detail', equipment_id=item['id']) }}'">
+        <td class="mono">{{ item['unit_number'] }}</td>
+        <td>{{ item['year'] or '' }} {{ item['make'] }} {{ item['model'] }}</td>
+        <td class="mono">{{ item['serial_number'] or '—' }}</td>
+        <td class="mono">{{ item['license_plate'] or '—' }}</td>
+        <td class="mono">{{ '{:,}'.format(item['meter_reading']) }} {{ item['meter_type'] }}</td>
+        <td>{{ item['assigned_to'] or '—' }}</td>
+        <td><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|capitalize }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <h3>No equipment found</h3>
+    <div>Try a different search, or add the first item.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

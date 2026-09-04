@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Add equipment' if mode == 'new' else 'Edit equipment' }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ 'Add equipment' if mode == 'new' else 'Edit ' + item.get('unit_number', '') }}</h1>
+  </div>
+</div>
+
+<form method="post" class="panel" style="padding: 24px;">
+  <div class="form-grid">
+    <div class="field">
+      <label for="unit_number">Unit number *</label>
+      <input type="text" id="unit_number" name="unit_number" value="{{ item.get('unit_number', '') }}" required>
+    </div>
+    <div class="field">
+      <label for="equipment_type">Equipment type *</label>
+      <select id="equipment_type" name="equipment_type" required>
+        <option value="" disabled {{ 'selected' if not item.get('equipment_type') }}>— choose —</option>
+        {% for t in equipment_types %}
+        <option value="{{ t }}" {{ 'selected' if item.get('equipment_type') == t }}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="make">Make *</label>
+      <input type="text" id="make" name="make" value="{{ item.get('make', '') }}" required>
+    </div>
+    <div class="field">
+      <label for="model">Model *</label>
+      <input type="text" id="model" name="model" value="{{ item.get('model', '') }}" required>
+    </div>
+
+    <div class="field">
+      <label for="status">Status *</label>
+      <select id="status" name="status">
+        {% for s in statuses %}
+        <option value="{{ s }}" {{ 'selected' if item.get('status', 'active') == s }}>{{ s|replace('_', ' ')|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div></div>
+
+    <div class="field">
+      <label for="meter_reading">Current meter reading *</label>
+      <input type="number" id="meter_reading" name="meter_reading" value="{{ item.get('meter_reading', 0) }}" min="0">
+    </div>
+    <div class="field">
+      <label for="meter_type">Meter type *</label>
+      <select id="meter_type" name="meter_type">
+        {% for m in meter_types %}
+        <option value="{{ m }}" {{ 'selected' if item.get('meter_type', 'kilometers') == m }}>{{ m|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ 'Add equipment' if mode == 'new' else 'Save changes' }}</button>
+    <a href="{{ url_for('equipment.detail', equipment_id=item['id']) if mode == 'edit' else url_for('equipment.list_equipment') }}" class="btn">Cancel</a>
+  </div>
+</form>
+
+{% if mode == 'edit' %}
+{% set remaining_optional = optional_fields|reject('in', enabled_fields)|list %}
+<div class="section-header" style="margin-top: 28px;">
+  <h2 class="section-title">Additional fields</h2>
+</div>
+<div class="panel custom-fields-panel">
+  {% if not enabled_fields and not custom_fields %}
+  <div class="empty-state">
+    <h3>No additional fields yet</h3>
+    <div>Add fields like Serial number or Fuel type only where they apply, or create your own — they'll show up here and on this item's detail page.</div>
+  </div>
+  {% else %}
+  {% for f in optional_fields if f in enabled_fields %}
+  <div class="custom-field-row">
+    <form method="post" action="{{ url_for('equipment.edit_optional_field', equipment_id=item['id'], field_name=f) }}" class="custom-field-edit-form">
+      <label class="custom-field-label">{{ optional_field_labels[f] }}</label>
+      {% if f == 'fuel_type' %}
+      <select name="value">
+        <option value="" {{ 'selected' if not item.get('fuel_type') }}>Unspecified</option>
+        {% for ft in fuel_types %}
+        <option value="{{ ft }}" {{ 'selected' if item.get('fuel_type') == ft }}>{{ ft|capitalize }}</option>
+        {% endfor %}
+      </select>
+      {% elif f == 'notes' %}
+      <textarea name="value">{{ item.get('notes', '') or '' }}</textarea>
+      {% elif f == 'year' %}
+      <input type="number" name="value" min="1950" max="2100" value="{{ item.get('year', '') or '' }}">
+      {% else %}
+      <input type="text" name="value" value="{{ item.get(f, '') or '' }}">
+      {% endif %}
+      <button type="submit" class="btn btn-sm">Save</button>
+    </form>
+    <form method="post" action="{{ url_for('equipment.remove_optional_field', equipment_id=item['id'], field_name=f) }}"
+          onsubmit="return confirm('Remove the {{ optional_field_labels[f] }} field? Its value will be cleared.');">
+      <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% for f in custom_fields %}
+  <div class="custom-field-row">
+    <form method="post" action="{{ url_for('equipment.edit_field', equipment_id=item['id'], field_id=f['id']) }}" class="custom-field-edit-form">
+      <input type="text" name="label" value="{{ f['label'] }}" placeholder="Field name" required>
+      <input type="text" name="value" value="{{ f['value'] or '' }}" placeholder="Value">
+      <button type="submit" class="btn btn-sm">Save</button>
+    </form>
+    <form method="post" action="{{ url_for('equipment.delete_field', equipment_id=item['id'], field_id=f['id']) }}"
+          onsubmit="return confirm('Remove the {{ f['label'] }} field?');">
+      <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <form method="post" action="{{ url_for('equipment.add_field', equipment_id=item['id']) }}" class="custom-field-add-form">
+    <select name="field_name">
+      <option value="">— choose a built-in field —</option>
+      {% for f in remaining_optional %}
+      <option value="{{ f }}">{{ optional_field_labels[f] }}</option>
+      {% endfor %}
+      <option value="custom">Create new field…</option>
+    </select>
+    <span class="field-hint">or, for a new field:</span>
+    <input type="text" name="custom_label" placeholder="Field name (e.g. Gross Vehicle Weight)">
+    <input type="text" name="custom_value" placeholder="Value (optional)">
+    <button type="submit" class="btn btn-sm btn-primary">+ Add field</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

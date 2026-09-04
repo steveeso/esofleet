@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Parts Catalog{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Parts Catalog</h1>
+    <div class="subtitle">Shared reference specs — link items to equipment from an equipment item's Maintenance Info section</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('catalog.new_category') }}" class="btn btn-primary">+ Add category</a>
+  </div>
+</div>
+
+<div class="panel">
+  {% if categories %}
+  {% for category in categories %}
+  {% set cat_items = items_by_category.get(category['id'], []) %}
+  <details id="category-{{ category['id'] }}" class="acc-category" {{ 'open' if request.args.get('open')|string == category['id']|string }}>
+    <summary>
+      <span class="acc-summary-main">
+        <span class="acc-title">{{ category['name'] }}</span>
+      </span>
+      <span class="acc-meta">{{ cat_items|length }} item{{ '' if cat_items|length == 1 else 's' }}</span>
+    </summary>
+    <div class="acc-body">
+      <div class="acc-category-actions">
+        <a href="{{ url_for('catalog.new_item', category_id=category['id']) }}" class="btn btn-sm">+ Add item</a>
+        <a href="{{ url_for('catalog.edit_category', category_id=category['id']) }}" class="btn btn-sm">Rename</a>
+        <form method="post" action="{{ url_for('catalog.delete_category', category_id=category['id']) }}"
+              onsubmit="return confirm('Delete this category and everything in it? Any equipment linked to its items will lose that link too.');">
+          <button type="submit" class="btn btn-sm btn-danger">Delete category</button>
+        </form>
+      </div>
+
+      {% if cat_items %}
+      {% for catalog_item in cat_items %}
+      {% set alts = alternates_by_item.get(catalog_item['id'], []) %}
+      <details id="item-{{ catalog_item['id'] }}" class="acc-item" {{ 'open' if request.args.get('open_item')|string == catalog_item['id']|string }}>
+        <summary>
+          <span class="acc-summary-main">
+            <span class="acc-title">{{ catalog_item['label'] }}</span>
+            {% if catalog_item['value'] %}<span class="mono">{{ catalog_item['value'] }}</span>{% endif %}
+          </span>
+          <span class="acc-meta">{{ alts|length }} alternate{{ '' if alts|length == 1 else 's' }}</span>
+        </summary>
+        <div class="acc-body">
+          {% if catalog_item['notes'] %}<div class="acc-item-notes">{{ catalog_item['notes'] }}</div>{% endif %}
+
+          <div class="alt-section">
+            <h4>Alternate part numbers / equivalents</h4>
+            {% if alts %}
+            <ul class="alt-list">
+              {% for alt in alts %}
+              <li>
+                <div>
+                  <span class="mono">{{ alt['value'] }}</span>
+                  {% if alt['notes'] %}<div class="alt-notes">{{ alt['notes'] }}</div>{% endif %}
+                </div>
+                <form method="post" action="{{ url_for('catalog.delete_alternate', alternate_id=alt['id']) }}"
+                      onsubmit="return confirm('Remove this alternate?');">
+                  <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                </form>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <div class="alt-notes">No alternates recorded yet.</div>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('catalog.new_alternate', item_id=catalog_item['id']) }}" class="alt-add-form">
+              <input type="text" name="value" placeholder="Alternate part number / spec" required>
+              <input type="text" name="notes" placeholder="Brand or notes (optional)">
+              <button type="submit" class="btn btn-sm btn-primary">Add</button>
+            </form>
+          </div>
+
+          <div class="acc-item-actions">
+            <a href="{{ url_for('catalog.edit_item', item_id=catalog_item['id']) }}" class="btn btn-sm">Edit item</a>
+          </div>
+        </div>
+      </details>
+      {% endfor %}
+      {% else %}
+      <div class="empty-state">
+        <h3>No items in this category yet</h3>
+        <div>Add the first item, e.g. "Oil Filter" with its part number.</div>
+      </div>
+      {% endif %}
+    </div>
+  </details>
+  {% endfor %}
+  {% else %}
+  <div class="empty-state">
+    <h3>Catalog is empty</h3>
+    <div>Add a category like Filters or Oil Types and Capacities to keep reference specs handy. You can also create catalog items directly from an equipment item's Maintenance Info section.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -2,15 +2,16 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 
 from ..db import get_db
 from .auth import login_required
+from .equipment import record_meter_reading
 
-bp = Blueprint("maintenance", __name__, url_prefix="/vehicles/<int:vehicle_id>/maintenance")
+bp = Blueprint("maintenance", __name__, url_prefix="/equipment/<int:equipment_id>/maintenance")
 
 
-def _vehicle_or_404(db, vehicle_id):
-    vehicle = db.execute("SELECT * FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
-    if vehicle is None:
+def _equipment_or_404(db, equipment_id):
+    item = db.execute("SELECT * FROM equipment WHERE id = ?", (equipment_id,)).fetchone()
+    if item is None:
         abort(404)
-    return vehicle
+    return item
 
 
 def _read_form(form):
@@ -19,18 +20,18 @@ def _read_form(form):
         "service_type": form["service_type"].strip(),
         "description": form.get("description", "").strip() or None,
         "cost": form.get("cost") or None,
-        "mileage_at_service": form.get("mileage_at_service") or None,
+        "meter_reading_at_service": form.get("meter_reading_at_service") or None,
         "next_due_date": form.get("next_due_date") or None,
-        "next_due_mileage": form.get("next_due_mileage") or None,
+        "next_due_meter_reading": form.get("next_due_meter_reading") or None,
         "performed_by": form.get("performed_by", "").strip() or None,
     }
 
 
 @bp.route("/new", methods=("GET", "POST"))
 @login_required
-def new(vehicle_id):
+def new(equipment_id):
     db = get_db()
-    vehicle = _vehicle_or_404(db, vehicle_id)
+    item = _equipment_or_404(db, equipment_id)
 
     if request.method == "POST":
         data = _read_form(request.form)
@@ -41,41 +42,38 @@ def new(vehicle_id):
         if error is None:
             db.execute(
                 """INSERT INTO maintenance_records
-                   (vehicle_id, service_date, service_type, description, cost,
-                    mileage_at_service, next_due_date, next_due_mileage, performed_by)
+                   (equipment_id, service_date, service_type, description, cost,
+                    meter_reading_at_service, next_due_date, next_due_meter_reading, performed_by)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    vehicle_id, data["service_date"], data["service_type"],
-                    data["description"], data["cost"], data["mileage_at_service"],
-                    data["next_due_date"], data["next_due_mileage"], data["performed_by"],
+                    equipment_id, data["service_date"], data["service_type"],
+                    data["description"], data["cost"], data["meter_reading_at_service"],
+                    data["next_due_date"], data["next_due_meter_reading"], data["performed_by"],
                 ),
             )
-            # Keep the vehicle's odometer current if this service logged a
-            # higher reading than what's on file.
-            if data["mileage_at_service"]:
-                db.execute(
-                    """UPDATE vehicles SET mileage = MAX(mileage, ?),
-                       updated_at = datetime('now') WHERE id = ?""",
-                    (int(data["mileage_at_service"]), vehicle_id),
+            # Feed this service's reading into the equipment's meter history.
+            if data["meter_reading_at_service"]:
+                record_meter_reading(
+                    db, equipment_id, int(data["meter_reading_at_service"]), data["service_date"],
                 )
             db.commit()
             flash("Maintenance record added.", "success")
-            return redirect(url_for("vehicles.detail", vehicle_id=vehicle_id))
+            return redirect(url_for("equipment.detail", equipment_id=equipment_id, _anchor="maintenance-history"))
 
         flash(error, "error")
-        return render_template("maintenance/form.html", vehicle=vehicle, record=data, mode="new")
+        return render_template("maintenance/form.html", item=item, record=data, mode="new")
 
-    return render_template("maintenance/form.html", vehicle=vehicle, record={}, mode="new")
+    return render_template("maintenance/form.html", item=item, record={}, mode="new")
 
 
 @bp.route("/<int:record_id>/edit", methods=("GET", "POST"))
 @login_required
-def edit(vehicle_id, record_id):
+def edit(equipment_id, record_id):
     db = get_db()
-    vehicle = _vehicle_or_404(db, vehicle_id)
+    item = _equipment_or_404(db, equipment_id)
     record = db.execute(
-        "SELECT * FROM maintenance_records WHERE id = ? AND vehicle_id = ?",
-        (record_id, vehicle_id),
+        "SELECT * FROM maintenance_records WHERE id = ? AND equipment_id = ?",
+        (record_id, equipment_id),
     ).fetchone()
     if record is None:
         abort(404)
@@ -90,35 +88,39 @@ def edit(vehicle_id, record_id):
             db.execute(
                 """UPDATE maintenance_records SET
                     service_date=?, service_type=?, description=?, cost=?,
-                    mileage_at_service=?, next_due_date=?, next_due_mileage=?,
+                    meter_reading_at_service=?, next_due_date=?, next_due_meter_reading=?,
                     performed_by=?
                    WHERE id=?""",
                 (
                     data["service_date"], data["service_type"], data["description"],
-                    data["cost"], data["mileage_at_service"], data["next_due_date"],
-                    data["next_due_mileage"], data["performed_by"], record_id,
+                    data["cost"], data["meter_reading_at_service"], data["next_due_date"],
+                    data["next_due_meter_reading"], data["performed_by"], record_id,
                 ),
             )
+            if data["meter_reading_at_service"]:
+                record_meter_reading(
+                    db, equipment_id, int(data["meter_reading_at_service"]), data["service_date"],
+                )
             db.commit()
             flash("Maintenance record updated.", "success")
-            return redirect(url_for("vehicles.detail", vehicle_id=vehicle_id))
+            return redirect(url_for("equipment.detail", equipment_id=equipment_id, _anchor="maintenance-history"))
 
         flash(error, "error")
         data["id"] = record_id
-        return render_template("maintenance/form.html", vehicle=vehicle, record=data, mode="edit")
+        return render_template("maintenance/form.html", item=item, record=data, mode="edit")
 
-    return render_template("maintenance/form.html", vehicle=vehicle, record=dict(record), mode="edit")
+    return render_template("maintenance/form.html", item=item, record=dict(record), mode="edit")
 
 
 @bp.route("/<int:record_id>/delete", methods=("POST",))
 @login_required
-def delete(vehicle_id, record_id):
+def delete(equipment_id, record_id):
     db = get_db()
-    _vehicle_or_404(db, vehicle_id)
+    _equipment_or_404(db, equipment_id)
     db.execute(
-        "DELETE FROM maintenance_records WHERE id = ? AND vehicle_id = ?",
-        (record_id, vehicle_id),
+        "DELETE FROM maintenance_records WHERE id = ? AND equipment_id = ?",
+        (record_id, equipment_id),
     )
     db.commit()
     flash("Maintenance record deleted.", "success")
-    return redirect(url_for("vehicles.detail", vehicle_id=vehicle_id))
+    return redirect(url_for("equipment.detail", equipment_id=equipment_id, _anchor="maintenance-history"))

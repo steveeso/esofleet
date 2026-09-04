@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}{{ item['unit_number'] }}{% endblock %}
+
+{% macro qty_display(quantity, unit) %}{% if quantity is not none %}{% if unit %}{{ '{:g}'.format(quantity) }} {{ unit }}{% else %}×{{ '{:g}'.format(quantity) }}{% endif %}{% endif %}{% endmacro %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ item['unit_number'] }} — {% if 'year' in enabled_fields %}{{ item['year'] }} {% endif %}{{ item['make'] }} {{ item['model'] }}</h1>
+    <div class="subtitle"><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|capitalize }}</span></div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('equipment.edit', equipment_id=item['id']) }}" class="btn">Edit equipment</a>
+    <a href="{{ url_for('maintenance.new', equipment_id=item['id']) }}" class="btn btn-primary">+ Log maintenance</a>
+  </div>
+</div>
+
+<div class="page-nav-grid">
+  <nav class="page-nav">
+    <a href="#equipment-info">Equipment Info</a>
+    <a href="#maintenance-info">Maintenance Info</a>
+    <a href="#maintenance-history">Maintenance History</a>
+    <a href="#meter-history">Meter History</a>
+  </nav>
+
+  <div>
+    <section id="equipment-info" class="detail-section">
+      <div class="section-header">
+        <h2 class="section-title">Equipment Info</h2>
+      </div>
+      <div class="panel equipment-summary">
+        <div class="info-grid">
+          <div><div class="info-label">Type</div><div class="info-value">{{ item['equipment_type'] }}</div></div>
+          <div><div class="info-label">Meter</div><div class="info-value mono">{{ '{:,}'.format(item['meter_reading']) }} {{ item['meter_type'] }}</div></div>
+          {% if 'year' in enabled_fields %}
+          <div><div class="info-label">Year</div><div class="info-value">{{ item['year'] or '—' }}</div></div>
+          {% endif %}
+          {% if 'serial_number' in enabled_fields %}
+          <div><div class="info-label">Serial number</div><div class="info-value mono">{{ item['serial_number'] or '—' }}</div></div>
+          {% endif %}
+          {% if 'license_plate' in enabled_fields %}
+          <div><div class="info-label">Plate</div><div class="info-value mono">{{ item['license_plate'] or '—' }}</div></div>
+          {% endif %}
+          {% if 'fuel_type' in enabled_fields %}
+          <div><div class="info-label">Fuel type</div><div class="info-value">{{ item['fuel_type']|capitalize if item['fuel_type'] else '—' }}</div></div>
+          {% endif %}
+          {% if 'assigned_to' in enabled_fields %}
+          <div><div class="info-label">Assigned to</div><div class="info-value">{{ item['assigned_to'] or '—' }}</div></div>
+          {% endif %}
+          {% for f in custom_fields %}
+          <div><div class="info-label">{{ f['label'] }}</div><div class="info-value">{{ f['value'] or '—' }}</div></div>
+          {% endfor %}
+          {% if 'notes' in enabled_fields %}
+          <div class="full"><div class="info-label">Notes</div><div class="info-value">{{ item['notes'] or '—' }}</div></div>
+          {% endif %}
+        </div>
+        <div style="padding: 0 20px 20px 20px;">
+          <form method="post" action="{{ url_for('equipment.delete', equipment_id=item['id']) }}"
+                onsubmit="return confirm('Remove {{ item['unit_number'] }} and all its maintenance history? This cannot be undone.');">
+            <button type="submit" class="btn btn-danger btn-sm">Remove equipment</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="maintenance-info" class="detail-section">
+      <div class="section-header">
+        <h2 class="section-title">Maintenance Info</h2>
+        <div class="actions">
+          <a href="{{ url_for('catalog.index') }}" class="btn btn-sm">Browse catalog</a>
+          <a href="{{ url_for('equipment.link_catalog_item', equipment_id=item['id']) }}" class="btn btn-sm btn-primary">+ Link item</a>
+        </div>
+      </div>
+      <div class="panel">
+        {% for category in categories %}
+        {% set cat_items = items_by_category.get(category['id'], []) %}
+        <details id="category-{{ category['id'] }}" class="acc-category" open>
+          <summary>
+            <span class="acc-summary-main">
+              <span class="acc-title">{{ category['name'] }}</span>
+            </span>
+            <span class="acc-meta">{{ cat_items|length }} item{{ '' if cat_items|length == 1 else 's' }}</span>
+          </summary>
+          <div class="acc-body">
+            {% for catalog_item in cat_items %}
+            {% set alts = alternates_by_item.get(catalog_item['id'], []) %}
+            <details id="item-{{ catalog_item['id'] }}" class="acc-item" {{ 'open' if request.args.get('open_item')|string == catalog_item['id']|string }}>
+              <summary>
+                <span class="acc-summary-main">
+                  <span class="acc-title">{{ catalog_item['label'] }}</span>
+                  {% if catalog_item['value'] %}<span class="mono">{{ catalog_item['value'] }}</span>{% endif %}
+                  {% set qd = qty_display(catalog_item['link_quantity'], catalog_item['link_quantity_unit']) %}
+                  {% if qd|trim %}<span class="mono">{{ qd }}</span>{% endif %}
+                </span>
+                <span class="acc-meta">{{ alts|length }} alternate{{ '' if alts|length == 1 else 's' }}</span>
+              </summary>
+              <div class="acc-body">
+                {% if catalog_item['notes'] %}<div class="acc-item-notes">{{ catalog_item['notes'] }}</div>{% endif %}
+
+                <form method="post" action="{{ url_for('equipment.set_link_quantity', equipment_id=item['id'], catalog_item_id=catalog_item['id']) }}" class="custom-field-edit-form qty-edit-form">
+                  <label class="custom-field-label">Quantity on this unit</label>
+                  <input type="number" name="quantity" min="0" step="any" placeholder="e.g. 2 or 5.7" value="{{ catalog_item['link_quantity'] if catalog_item['link_quantity'] is not none else '' }}" class="qty-input">
+                  <input type="text" name="quantity_unit" placeholder="Unit" value="{{ catalog_item['link_quantity_unit'] or '' }}" class="qty-unit-input">
+                  <button type="submit" class="btn btn-sm">Save</button>
+                </form>
+
+                <div class="alt-section">
+                  <h4>Alternate part numbers / equivalents</h4>
+                  {% if alts %}
+                  <ul class="alt-list">
+                    {% for alt in alts %}
+                    <li>
+                      <div>
+                        <span class="mono">{{ alt['value'] }}</span>
+                        {% if alt['notes'] %}<div class="alt-notes">{{ alt['notes'] }}</div>{% endif %}
+                      </div>
+                      <form method="post" action="{{ url_for('catalog.delete_alternate', alternate_id=alt['id']) }}"
+                            onsubmit="return confirm('Remove this alternate? This affects every piece of equipment linked to this item.');">
+                        <input type="hidden" name="next" value="{{ url_for('equipment.detail', equipment_id=item['id'], open_item=catalog_item['id'], _anchor='item-' ~ catalog_item['id']) }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                      </form>
+                    </li>
+                    {% endfor %}
+                  </ul>
+                  {% else %}
+                  <div class="alt-notes">No alternates recorded yet.</div>
+                  {% endif %}
+
+                  <form method="post" action="{{ url_for('catalog.new_alternate', item_id=catalog_item['id']) }}" class="alt-add-form">
+                    <input type="hidden" name="next" value="{{ url_for('equipment.detail', equipment_id=item['id'], open_item=catalog_item['id'], _anchor='item-' ~ catalog_item['id']) }}">
+                    <input type="text" name="value" placeholder="Alternate part number / spec" required>
+                    <input type="text" name="notes" placeholder="Brand or notes (optional)">
+                    <button type="submit" class="btn btn-sm btn-primary">Add</button>
+                  </form>
+                  <div class="hint" style="margin-top: 6px;">This item is shared — edits and alternates apply everywhere it's linked.</div>
+                </div>
+
+                <div class="acc-item-actions">
+                  <a href="{{ url_for('catalog.edit_item', item_id=catalog_item['id'], next=url_for('equipment.detail', equipment_id=item['id'], open_item=catalog_item['id'], _anchor='item-' ~ catalog_item['id'])) }}" class="btn btn-sm">Edit in catalog</a>
+                  <form method="post" action="{{ url_for('equipment.unlink_catalog_item', equipment_id=item['id'], catalog_item_id=catalog_item['id']) }}"
+                        onsubmit="return confirm('Unlink this item from {{ item['unit_number'] }}? It stays in the catalog for other equipment.');">
+                    <button type="submit" class="btn btn-sm btn-danger">Unlink</button>
+                  </form>
+                </div>
+              </div>
+            </details>
+            {% endfor %}
+          </div>
+        </details>
+        {% endfor %}
+
+        {% if not categories and not info_items %}
+        <div class="empty-state">
+          <h3>No maintenance information yet</h3>
+          <div>Link an item from the shared catalog, or add a field below for something specific to this item.</div>
+        </div>
+        {% endif %}
+
+        <div class="custom-fields-inline">
+          {% for i in info_items %}
+          <div class="custom-field-row">
+            <form method="post" action="{{ url_for('equipment.edit_info_item', equipment_id=item['id'], item_id=i['id']) }}" class="custom-field-edit-form">
+              <input type="text" name="label" value="{{ i['label'] }}" placeholder="Field name" required>
+              <input type="text" name="value" value="{{ i['value'] or '' }}" placeholder="Value">
+              <input type="number" name="quantity" min="0" step="any" value="{{ i['quantity'] if i['quantity'] is not none else '' }}" placeholder="Qty" class="qty-input">
+              <input type="text" name="quantity_unit" value="{{ i['quantity_unit'] or '' }}" placeholder="Unit" class="qty-unit-input">
+              <button type="submit" class="btn btn-sm">Save</button>
+            </form>
+            <form method="post" action="{{ url_for('equipment.delete_info_item', equipment_id=item['id'], item_id=i['id']) }}"
+                  onsubmit="return confirm('Remove the {{ i['label'] }} field?');">
+              <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+            </form>
+          </div>
+          {% endfor %}
+
+          <form method="post" action="{{ url_for('equipment.new_info_item', equipment_id=item['id']) }}" class="custom-field-add-form">
+            <input type="text" name="label" placeholder="Field name (e.g. Oil Capacity)" required>
+            <input type="text" name="value" placeholder="Value (optional notes)">
+            <input type="number" name="quantity" min="0" step="any" placeholder="e.g. 5.7" class="qty-input">
+            <input type="text" name="quantity_unit" placeholder="e.g. liters" class="qty-unit-input">
+            <button type="submit" class="btn btn-sm btn-primary">+ Add field</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="maintenance-history" class="detail-section">
+      <div class="section-header">
+        <h2 class="section-title">Maintenance History</h2>
+      </div>
+      <div class="panel">
+        {% if records %}
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Description</th>
+              <th>Meter</th>
+              <th>Cost</th>
+              <th>Next due</th>
+              <th>Performed by</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in records %}
+            <tr>
+              <td class="mono">{{ r['service_date'] }}</td>
+              <td>{{ r['service_type'] }}</td>
+              <td>{{ r['description'] or '—' }}</td>
+              <td class="mono">{{ '{:,}'.format(r['meter_reading_at_service']) + ' ' + item['meter_type'] if r['meter_reading_at_service'] else '—' }}</td>
+              <td class="mono">{{ '${:,.2f}'.format(r['cost']) if r['cost'] else '—' }}</td>
+              <td class="mono">
+                {% if r['next_due_date'] %}{{ r['next_due_date'] }}{% endif %}
+                {% if r['next_due_meter_reading'] %}{% if r['next_due_date'] %}<br>{% endif %}{{ '{:,}'.format(r['next_due_meter_reading']) }} {{ item['meter_type'] }}{% endif %}
+                {% if not r['next_due_date'] and not r['next_due_meter_reading'] %}—{% endif %}
+              </td>
+              <td>{{ r['performed_by'] or '—' }}</td>
+              <td><a href="{{ url_for('maintenance.edit', equipment_id=item['id'], record_id=r['id']) }}" class="btn btn-sm">Edit</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+          <h3>No maintenance logged yet</h3>
+          <div>Add the first service record for this item.</div>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section id="meter-history" class="detail-section">
+      <div class="section-header">
+        <h2 class="section-title">Meter History</h2>
+        <div class="actions">
+          <a href="{{ url_for('equipment.new_meter_reading', equipment_id=item['id']) }}" class="btn btn-sm">+ Log reading</a>
+        </div>
+      </div>
+      <div class="panel">
+        {% if meter_chart %}
+        <div class="meter-chart-wrap">
+          <svg viewBox="0 0 {{ meter_chart.width }} {{ meter_chart.height }}" class="meter-chart" preserveAspectRatio="none">
+            <polyline points="{{ meter_chart.polyline }}"></polyline>
+            {% for p in meter_chart.points %}
+            <circle cx="{{ p.x }}" cy="{{ p.y }}" r="2.5"><title>{{ p.recorded_at }}: {{ '{:,}'.format(p.reading) }} {{ item['meter_type'] }}</title></circle>
+            {% endfor %}
+          </svg>
+          <div class="meter-chart-labels">
+            <span>{{ '{:,}'.format(meter_chart.min) }} {{ item['meter_type'] }}</span>
+            <span>{{ '{:,}'.format(meter_chart.max) }} {{ item['meter_type'] }}</span>
+          </div>
+        </div>
+        {% endif %}
+        {% if meter_readings %}
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Reading</th>
+              <th>Notes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in meter_readings %}
+            <tr>
+              <td class="mono">{{ r['recorded_at'] }}</td>
+              <td class="mono">{{ '{:,}'.format(r['reading']) }} {{ item['meter_type'] }}</td>
+              <td>{{ r['notes'] or '—' }}</td>
+              <td>
+                <form method="post" action="{{ url_for('equipment.delete_meter_reading', equipment_id=item['id'], reading_id=r['id']) }}"
+                      onsubmit="return confirm('Remove this meter reading?');">
+                  <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+          <h3>No meter readings logged yet</h3>
+          <div>Log a reading to start building history.</div>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

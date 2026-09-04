@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h1>{{ 'Log maintenance' if mode == 'new' else 'Edit maintenance record' }}</h1>
-    <div class="subtitle">{{ vehicle['unit_number'] }} — {{ vehicle['year'] }} {{ vehicle['make'] }} {{ vehicle['model'] }}</div>
+    <div class="subtitle">{{ item['unit_number'] }} — {{ item['year'] or '' }} {{ item['make'] }} {{ item['model'] }}</div>
   </div>
 </div>
 
@@ -17,13 +17,13 @@
     </div>
     <div class="field">
       <label for="service_type">Service type *</label>
-      <input type="text" id="service_type" name="service_type" placeholder="Oil change, brake inspection…" value="{{ record.get('service_type', '') }}" required>
+      <input type="text" id="service_type" name="service_type" placeholder="Oil change, blade sharpening…" value="{{ record.get('service_type', '') }}" required>
     </div>
 
     <div class="field">
-      <label for="mileage_at_service">Mileage at service</label>
-      <input type="number" id="mileage_at_service" name="mileage_at_service" min="0" value="{{ record.get('mileage_at_service', '') or '' }}">
-      <div class="hint">Updates the vehicle's odometer if higher than current.</div>
+      <label for="meter_reading_at_service">Meter reading at service ({{ item['meter_type'] }})</label>
+      <input type="number" id="meter_reading_at_service" name="meter_reading_at_service" min="0" value="{{ record.get('meter_reading_at_service', '') or '' }}">
+      <div class="hint">Updates the equipment's meter reading if higher than current.</div>
     </div>
     <div class="field">
       <label for="cost">Cost ($)</label>
@@ -35,8 +35,8 @@
       <input type="date" id="next_due_date" name="next_due_date" value="{{ record.get('next_due_date', '') or '' }}">
     </div>
     <div class="field">
-      <label for="next_due_mileage">Next due mileage</label>
-      <input type="number" id="next_due_mileage" name="next_due_mileage" min="0" value="{{ record.get('next_due_mileage', '') or '' }}">
+      <label for="next_due_meter_reading">Next due meter reading ({{ item['meter_type'] }})</label>
+      <input type="number" id="next_due_meter_reading" name="next_due_meter_reading" min="0" value="{{ record.get('next_due_meter_reading', '') or '' }}">
     </div>
 
     <div class="field">
@@ -53,12 +53,12 @@
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">{{ 'Add record' if mode == 'new' else 'Save changes' }}</button>
-    <a href="{{ url_for('vehicles.detail', vehicle_id=vehicle['id']) }}" class="btn">Cancel</a>
+    <a href="{{ url_for('equipment.detail', equipment_id=item['id']) }}" class="btn">Cancel</a>
   </div>
 </form>
 
 {% if mode == 'edit' %}
-<form method="post" action="{{ url_for('maintenance.delete', vehicle_id=vehicle['id'], record_id=record['id']) }}"
+<form method="post" action="{{ url_for('maintenance.delete', equipment_id=item['id'], record_id=record['id']) }}"
       onsubmit="return confirm('Delete this maintenance record?');" style="margin-top: 12px;">
   <button type="submit" class="btn btn-danger">Delete record</button>
 </form>

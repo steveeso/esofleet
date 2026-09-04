@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Log meter reading{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Log meter reading</h1>
+    <div class="subtitle">{{ item['unit_number'] }} — {{ item['year'] or '' }} {{ item['make'] }} {{ item['model'] }}</div>
+  </div>
+</div>
+
+<form method="post" class="panel" style="padding: 24px; max-width: 480px;">
+  <div class="form-grid">
+    <div class="field">
+      <label for="reading">Reading ({{ item['meter_type'] }}) *</label>
+      <input type="number" id="reading" name="reading" min="0" value="{{ reading }}" required>
+    </div>
+    <div class="field">
+      <label for="recorded_at">Date *</label>
+      <input type="date" id="recorded_at" name="recorded_at" value="{{ recorded_at }}" required>
+      <div class="hint">Defaults to today — change it to backdate this reading.</div>
+    </div>
+    <div class="field full">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes">{{ notes }}</textarea>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Log reading</button>
+    <a href="{{ url_for('equipment.detail', equipment_id=item['id'], _anchor='meter-history') }}" class="btn">Cancel</a>
+  </div>
+</form>
+{% endblock %}

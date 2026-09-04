@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Link catalog item{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Link a catalog item</h1>
+    <div class="subtitle">{{ item['unit_number'] }} — {{ item['year'] or '' }} {{ item['make'] }} {{ item['model'] }}</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('catalog.index') }}" class="btn">Browse full catalog</a>
+    <a href="{{ url_for('equipment.detail', equipment_id=item['id'], _anchor='maintenance-info') }}" class="btn">Cancel</a>
+  </div>
+</div>
+
+<div class="section-header">
+  <h2 class="section-title">Link an existing item</h2>
+</div>
+<div class="panel" style="padding: 8px 0;">
+  {% if linkable_by_category %}
+  {% for category in categories %}
+  {% set cat_items = linkable_by_category.get(category['id'], []) %}
+  {% if cat_items %}
+  <div class="link-category-group">
+    <div class="link-category-name">{{ category['name'] }}</div>
+    {% for catalog_item in cat_items %}
+    <form method="post" class="link-item-row">
+      <input type="hidden" name="action" value="link_existing">
+      <input type="hidden" name="catalog_item_id" value="{{ catalog_item['id'] }}">
+      <div>
+        <span>{{ catalog_item['label'] }}</span>
+        {% if catalog_item['value'] %}<span class="mono">{{ catalog_item['value'] }}</span>{% endif %}
+      </div>
+      <input type="number" name="quantity" min="0" step="any" placeholder="Qty" class="qty-input">
+      <input type="text" name="quantity_unit" placeholder="Unit" class="qty-unit-input">
+      <button type="submit" class="btn btn-sm btn-primary">Link</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+  {% else %}
+  <div class="empty-state">
+    <h3>Nothing to link yet</h3>
+    <div>Every catalog item is already linked to this equipment, or the catalog is empty — create one below.</div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="section-header" style="margin-top: 24px;">
+  <h2 class="section-title">Or create a new catalog item</h2>
+</div>
+<form method="post" class="panel" style="padding: 24px;">
+  <input type="hidden" name="action" value="create_new">
+  <div class="form-grid">
+    <div class="field">
+      <label for="category_id">Existing category</label>
+      <select id="category_id" name="category_id">
+        <option value="">— choose —</option>
+        {% for category in categories %}
+        <option value="{{ category['id'] }}">{{ category['name'] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="new_category_name">Or a new category name</label>
+      <input type="text" id="new_category_name" name="new_category_name" placeholder="Filters, Oil Types and Capacities…">
+    </div>
+
+    <div class="field">
+      <label for="label">Label *</label>
+      <input type="text" id="label" name="label" placeholder="Oil Filter, Engine Oil…" required>
+    </div>
+    <div class="field">
+      <label for="value">Value</label>
+      <input type="text" id="value" name="value" placeholder="Part number or spec">
+    </div>
+
+    <div class="field">
+      <label for="quantity">Quantity on this unit</label>
+      <input type="number" id="quantity" name="quantity" min="0" step="any" placeholder="e.g. 2 or 5.7 (optional)">
+    </div>
+    <div class="field">
+      <label for="quantity_unit">Unit of measure</label>
+      <input type="text" id="quantity_unit" name="quantity_unit" placeholder="e.g. quarts, lb, liters (optional)">
+    </div>
+
+    <div class="field full">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes"></textarea>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Add to catalog and link</button>
+  </div>
+</form>
+{% endblock %}
