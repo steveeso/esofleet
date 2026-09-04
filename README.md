@@ -17,6 +17,10 @@ code and database for when that work resumes.
 This is a proof-of-concept meant to run locally first. It uses SQLite, so
 there's no separate database server to set up.
 
+See [NOTES.md](NOTES.md) for the *why* behind decisions that aren't obvious
+from the code alone — read that first if you're picking this project up
+fresh, on a new machine or otherwise.
+
 ## 1. Requirements
 
 - Python 3.9+ (tested on 3.12)
