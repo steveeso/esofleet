@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS catalog_items (
     label TEXT NOT NULL,
     value TEXT,
     notes TEXT,
+    location TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

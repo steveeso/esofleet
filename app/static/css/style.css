@@ -165,6 +165,10 @@ a:hover { text-decoration: underline; }
 /* Tables */
 table { width: 100%; border-collapse: collapse; }
 
+.table-scroll { overflow-x: auto; }
+
+mark { background: #FFE58A; color: inherit; padding: 0 1px; border-radius: 2px; }
+
 .panel table { border-radius: 8px; overflow: hidden; }
 
 th {
@@ -525,6 +529,8 @@ details[open] > summary .acc-summary-main::before { transform: rotate(90deg); }
 
 .acc-item-notes { font-size: 13.5px; color: var(--color-ink-muted); margin-bottom: 10px; }
 
+.item-location { font-size: 13.5px; color: var(--color-ink-muted); margin-bottom: 10px; }
+
 .alt-section h4 {
   margin: 0 0 8px 0;
   font-size: 12px;
@@ -550,6 +556,9 @@ details[open] > summary .acc-summary-main::before { transform: rotate(90deg); }
 
 .alt-add-form { display: flex; gap: 8px; flex-wrap: wrap; }
 .alt-add-form input { flex: 1; min-width: 140px; }
+
+.used-by { font-size: 13.5px; color: var(--color-ink-muted); margin-top: 4px; }
+.used-by-units a { margin-right: 2px; }
 
 .acc-item-actions { margin-top: 10px; }
 

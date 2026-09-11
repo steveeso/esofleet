@@ -23,6 +23,10 @@
     <label for="notes">Notes</label>
     <textarea id="notes" name="notes">{{ item.get('notes', '') or '' }}</textarea>
   </div>
+  <div class="field">
+    <label for="location">Location</label>
+    <input type="text" id="location" name="location" placeholder="e.g. Shop shelf A3, Bin 12…" value="{{ item.get('location', '') or '' }}">
+  </div>
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">{{ 'Add item' if mode == 'new' else 'Save changes' }}</button>

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Import preview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Import preview</h1>
+    <div class="subtitle">
+      {{ summary.total_items }} catalog item{{ '' if summary.total_items == 1 else 's' }},
+      {{ summary.total_alternates }} alternate{{ '' if summary.total_alternates == 1 else 's' }},
+      {{ summary.total_links }} equipment link{{ '' if summary.total_links == 1 else 's' }},
+      {{ summary.total_oem_infos }} OEM info field{{ '' if summary.total_oem_infos == 1 else 's' }}
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('catalog.import_form') }}" class="btn">Start over</a>
+  </div>
+</div>
+
+{% if skipped_missing_unit or skipped_no_value %}
+<div class="panel" style="padding: 16px 20px; margin-bottom: 18px;">
+  <h3 style="margin-top: 0;">Skipped rows</h3>
+  {% if skipped_missing_unit %}
+  <div class="field-hint">
+    These units aren't in your equipment list yet, so their rows were skipped —
+    add them first and re-run this import if you want their filters included:
+    {% for unit, count in skipped_missing_unit.items() %}{{ unit }} ({{ count }} row{{ '' if count == 1 else 's' }}){{ ', ' if not loop.last }}{% endfor %}
+  </div>
+  {% endif %}
+  {% if skipped_no_value %}
+  <div class="field-hint" style="margin-top: 6px;">
+    These rows had no part number in any column, so there was nothing to import — check them in your spreadsheet:
+    {% for unit, count in skipped_no_value.items() %}{{ unit }} ({{ count }} row{{ '' if count == 1 else 's' }}){{ ', ' if not loop.last }}{% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="panel">
+  {% for category in summary.categories %}
+  <details class="acc-category" open>
+    <summary>
+      <span class="acc-summary-main">
+        <span class="acc-title">{{ category.name }}</span>
+      </span>
+      <span class="acc-meta">{{ category.parts|length }} item{{ '' if category.parts|length == 1 else 's' }}</span>
+    </summary>
+    <div class="acc-body">
+      {% for item in category.parts %}
+      <details class="acc-item">
+        <summary>
+          <span class="acc-summary-main">
+            <span class="acc-title">{{ item.value }}</span>
+            {% if item.notes %}<span class="mono">{{ item.notes }}</span>{% endif %}
+          </span>
+          <span class="acc-meta">{{ item.units|length }} unit{{ '' if item.units|length == 1 else 's' }}, {{ item.alternates|length }} alt{{ '' if item.alternates|length == 1 else 's' }}</span>
+        </summary>
+        <div class="acc-body">
+          <div class="field-hint">Units: {{ item.units|join(', ') }}</div>
+          {% if item.alternates %}
+          <div class="field-hint" style="margin-top: 4px;">
+            Alternates:
+            {% for brand, value in item.alternates %}{{ brand }} {{ value }}{{ ', ' if not loop.last }}{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+</div>
+
+<form method="post" action="{{ url_for('catalog.import_confirm') }}" style="margin-top: 18px;">
+  <input type="hidden" name="file_data" value="{{ file_data }}">
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Import</button>
+    <a href="{{ url_for('catalog.index') }}" class="btn">Cancel</a>
+  </div>
+  <div class="field-hint" style="margin-top: 8px;">
+    Safe to re-run later — existing categories, items, and alternates are reused rather than duplicated.
+  </div>
+</form>
+{% endblock %}

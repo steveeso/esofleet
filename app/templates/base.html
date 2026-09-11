@@ -16,7 +16,8 @@
       <nav>
         <a href="{{ url_for('dashboard.index') }}" class="{{ 'active' if request.endpoint == 'dashboard.index' }}">Dashboard</a>
         <a href="{{ url_for('equipment.list_equipment') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('equipment.') }}">Equipment</a>
-        <a href="{{ url_for('catalog.index') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') }}">Parts Catalog</a>
+        <a href="{{ url_for('catalog.index') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') and request.endpoint != 'catalog.parts_list' }}">Parts Catalog</a>
+        <a href="{{ url_for('catalog.parts_list') }}" class="{{ 'active' if request.endpoint == 'catalog.parts_list' }}">Parts List</a>
         {% if g.user and g.user['role'] == 'admin' %}
         <a href="{{ url_for('users.list_users') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('users.') }}">Users</a>
         {% endif %}

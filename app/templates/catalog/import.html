@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Import filter assignments{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Import filter assignments from a spreadsheet</h1>
+    <div class="subtitle">Bulk-add catalog items, alternates, and equipment links</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('catalog.index') }}" class="btn">Cancel</a>
+  </div>
+</div>
+
+<div class="panel" style="padding: 24px; max-width: 640px;">
+  <p style="margin-top: 0;">
+    Reads the <span class="mono">Active List</span> sheet of an .xlsx file with
+    columns <span class="mono">Unit</span>, <span class="mono">Main P/N</span>,
+    <span class="mono">Type</span>, <span class="mono">OEM Number</span>,
+    <span class="mono">OEM Brand</span>, <span class="mono">Fram</span>,
+    <span class="mono">Donaldson</span>, <span class="mono">Fleetguard</span>,
+    <span class="mono">Baldwin</span>, <span class="mono">NAPA</span>,
+    <span class="mono">Other</span>, and <span class="mono">Notes</span> — any
+    other columns are ignored. Column order doesn't matter.
+  </p>
+  <p>
+    Each row becomes a shared catalog item (<span class="mono">Type</span> as
+    the category, <span class="mono">Main P/N</span> as the part number),
+    linked to <span class="mono">Unit</span>. The same part number reused
+    across multiple units becomes one shared item instead of a duplicate.
+    Fram/Donaldson/Fleetguard/Baldwin/NAPA become alternate part numbers
+    (skipped where they just repeat the primary number); a comma-separated
+    <span class="mono">Other</span> cell becomes one alternate per value.
+    <span class="mono">OEM Number</span>/<span class="mono">OEM Brand</span>
+    are saved as a unit-specific info field rather than a shared alternate,
+    since the same filter often has a different OEM cross-reference on
+    different equipment. Rows for a unit that doesn't exist yet are skipped.
+  </p>
+
+  <form method="post" action="{{ url_for('catalog.import_preview') }}" enctype="multipart/form-data" style="margin-top: 18px;">
+    <div class="field">
+      <label for="xlsx_file">Spreadsheet file (.xlsx)</label>
+      <input type="file" id="xlsx_file" name="xlsx_file" accept=".xlsx" required>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Preview import</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

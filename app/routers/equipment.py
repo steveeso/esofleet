@@ -11,6 +11,19 @@ from .catalog import get_linked_tree
 
 bp = Blueprint("equipment", __name__, url_prefix="/equipment")
 
+# Maps a sort key from the query string to a safe ORDER BY expression.
+# Whitelisted so the value can be interpolated directly into SQL.
+SORT_COLUMNS = {
+    "unit": "unit_number",
+    "equipment": "make, model, year",
+    "serial": "serial_number IS NULL, serial_number",
+    "registration": "license_plate IS NULL, license_plate",
+    "meter": "meter_reading",
+    "assigned": "assigned_to IS NULL, assigned_to",
+    "status": "status",
+}
+DEFAULT_SORT = "unit"
+
 STATUSES = ["active", "in_shop", "retired"]
 METER_TYPES = ["kilometers", "hours", "miles"]
 FUEL_TYPES = ["gasoline", "diesel", "propane", "electric", "other"]
@@ -50,6 +63,13 @@ def list_equipment():
     q = request.args.get("q", "").strip()
     status = request.args.get("status", "")
 
+    sort = request.args.get("sort", DEFAULT_SORT)
+    if sort not in SORT_COLUMNS:
+        sort = DEFAULT_SORT
+    direction = request.args.get("dir", "asc")
+    if direction not in ("asc", "desc"):
+        direction = "asc"
+
     query = "SELECT * FROM equipment WHERE 1=1"
     params = []
 
@@ -65,7 +85,7 @@ def list_equipment():
         query += " AND status = ?"
         params.append(status)
 
-    query += " ORDER BY unit_number"
+    query += f" ORDER BY {SORT_COLUMNS[sort]} {direction.upper()}"
 
     items = db.execute(query, params).fetchall()
 
@@ -75,6 +95,8 @@ def list_equipment():
         q=q,
         status=status,
         statuses=STATUSES,
+        sort=sort,
+        dir=direction,
     )
 
 
@@ -468,7 +490,7 @@ def detail(equipment_id):
     custom_fields = _custom_fields_for(db, equipment_id)
     enabled_fields = _enabled_fields_for(db, equipment_id)
     info_items = _info_items_for(db, equipment_id)
-    categories, items_by_category, alternates_by_item, _linked_ids = get_linked_tree(db, equipment_id)
+    categories, items_by_category, alternates_by_item, other_equipment_by_item, _linked_ids = get_linked_tree(db, equipment_id)
     meter_readings = db.execute(
         """SELECT * FROM equipment_meter_readings
            WHERE equipment_id = ?
@@ -485,6 +507,7 @@ def detail(equipment_id):
         categories=categories,
         items_by_category=items_by_category,
         alternates_by_item=alternates_by_item,
+        other_equipment_by_item=other_equipment_by_item,
         info_items=info_items,
         meter_readings=list(reversed(meter_readings)),
         meter_chart=_meter_chart(meter_readings),
@@ -851,7 +874,7 @@ def link_catalog_item(equipment_id):
             flash(error, "error")
 
     categories = db.execute("SELECT * FROM catalog_categories ORDER BY sort_order, name").fetchall()
-    _cats, _items_by_cat, _alts, linked_ids = get_linked_tree(db, equipment_id)
+    _cats, _items_by_cat, _alts, _other_equip, linked_ids = get_linked_tree(db, equipment_id)
     all_items = db.execute(
         "SELECT * FROM catalog_items ORDER BY category_id, sort_order, label"
     ).fetchall()

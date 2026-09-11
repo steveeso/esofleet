@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Equipment{% endblock %}
 
+{% macro sort_th(key, label) %}
+{% set next_dir = 'desc' if sort == key and dir == 'asc' else 'asc' %}
+<th><a href="{{ url_for('equipment.list_equipment', sort=key, dir=next_dir, q=q, status=status) }}" class="sort-link">{{ label }}{% if sort == key %}<span class="sort-arrow">{{ '▲' if dir == 'asc' else '▼' }}</span>{% endif %}</a></th>
+{% endmacro %}
+
 {% block content %}
 <div class="page-header">
   <div>
@@ -32,13 +37,13 @@
   <table>
     <thead>
       <tr>
-        <th>Unit</th>
-        <th>Equipment</th>
-        <th>Serial number</th>
-        <th>Registration number</th>
-        <th>Meter</th>
-        <th>Assigned to</th>
-        <th>Status</th>
+        {{ sort_th('unit', 'Unit') }}
+        {{ sort_th('equipment', 'Equipment') }}
+        {{ sort_th('serial', 'Serial number') }}
+        {{ sort_th('registration', 'Registration number') }}
+        {{ sort_th('meter', 'Meter') }}
+        {{ sort_th('assigned', 'Assigned to') }}
+        {{ sort_th('status', 'Status') }}
       </tr>
     </thead>
     <tbody>

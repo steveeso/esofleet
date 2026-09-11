@@ -99,6 +99,7 @@
               </summary>
               <div class="acc-body">
                 {% if catalog_item['notes'] %}<div class="acc-item-notes">{{ catalog_item['notes'] }}</div>{% endif %}
+                {% if catalog_item['location'] %}<div class="item-location"><strong>Location:</strong> {{ catalog_item['location'] }}</div>{% endif %}
 
                 <form method="post" action="{{ url_for('equipment.set_link_quantity', equipment_id=item['id'], catalog_item_id=catalog_item['id']) }}" class="custom-field-edit-form qty-edit-form">
                   <label class="custom-field-label">Quantity on this unit</label>
@@ -137,6 +138,14 @@
                   </form>
                   <div class="hint" style="margin-top: 6px;">This item is shared — edits and alternates apply everywhere it's linked.</div>
                 </div>
+
+                {% set also_used_by = other_equipment_by_item.get(catalog_item['id'], []) %}
+                {% if also_used_by %}
+                <div class="used-by">
+                  <strong>Also used by:</strong>
+                  <span class="used-by-units">{% for link in also_used_by %}<a href="{{ url_for('equipment.detail', equipment_id=link['equipment_id']) }}">{{ link['unit_number'] }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</span>
+                </div>
+                {% endif %}
 
                 <div class="acc-item-actions">
                   <a href="{{ url_for('catalog.edit_item', item_id=catalog_item['id'], next=url_for('equipment.detail', equipment_id=item['id'], open_item=catalog_item['id'], _anchor='item-' ~ catalog_item['id'])) }}" class="btn btn-sm">Edit in catalog</a>
