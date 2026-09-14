@@ -488,6 +488,11 @@ def parts_list():
                 "flagged": item["id"] in flagged_ids,
             })
 
+    all_units = [
+        row["unit_number"]
+        for row in db.execute("SELECT unit_number FROM equipment ORDER BY unit_number").fetchall()
+    ]
+
     sort = request.args.get("sort", DEFAULT_PARTS_LIST_SORT)
     direction = request.args.get("dir", "asc")
     if direction not in ("asc", "desc"):
@@ -527,7 +532,8 @@ def parts_list():
     return render_template(
         "catalog/parts_list.html",
         rows=rows, sort=sort, dir=direction, brand_columns=PARTS_LIST_BRANDS,
-        q=request.args.get("q", ""),
+        q=request.args.get("q", ""), unit=request.args.get("unit", ""),
+        all_units=all_units,
     )
 
 

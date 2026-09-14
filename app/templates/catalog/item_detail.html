@@ -24,7 +24,7 @@
         <div class="info-value">
           {% if item['supplier_stock'] is not none %}
           {{ item['supplier_stock'] }}
-          {% if item['supplier_stock_checked_at'] %}<span class="hint">as of {{ item['supplier_stock_checked_at'] }}</span>{% endif %}
+          {% if item['supplier_stock_checked_at'] %}<span class="hint">as of {{ item['supplier_stock_checked_at'] }}{% set ago = item['supplier_stock_checked_at']|days_ago %}{% if ago %} ({{ ago }}){% endif %}</span>{% endif %}
           {% else %}
           —
           {% endif %}
@@ -35,7 +35,7 @@
         <div class="info-value">
           {% if item['napa_stock'] is not none %}
           {{ item['napa_stock'] }}
-          {% if item['napa_stock_checked_at'] %}<span class="hint">as of {{ item['napa_stock_checked_at'] }}</span>{% endif %}
+          {% if item['napa_stock_checked_at'] %}<span class="hint">as of {{ item['napa_stock_checked_at'] }}{% set ago = item['napa_stock_checked_at']|days_ago %}{% if ago %} ({{ ago }}){% endif %}</span>{% endif %}
           {% else %}
           —
           {% endif %}

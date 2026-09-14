@@ -284,6 +284,23 @@ textarea { resize: vertical; min-height: 70px; }
 .filter-bar input[type="text"] { max-width: 320px; }
 .filter-bar select { max-width: 180px; }
 
+.search-clear-wrap { position: relative; display: inline-flex; }
+.search-clear-wrap input[type="text"] { padding-right: 28px; }
+.search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  color: var(--color-ink-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.search-clear:hover { color: var(--color-ink); }
+
 /* Flash messages */
 .flash { padding: 11px 16px; border-radius: 6px; margin-bottom: 18px; font-size: 14px; }
 .flash-success { background: var(--color-green-bg); color: var(--color-green); }
