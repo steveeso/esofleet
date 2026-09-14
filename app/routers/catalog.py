@@ -399,6 +399,18 @@ def index():
     )
 
 
+def _stock_sort_value(value):
+    """Sort key for supplier_stock, which is usually an int but can be
+    overflow text like "10+" (Bytown doesn't track exact counts past a
+    point) -- sort by the leading number either way, blanks last-ish."""
+    if value is None:
+        return -1
+    if isinstance(value, int):
+        return value
+    digits = "".join(ch for ch in str(value) if ch.isdigit())
+    return int(digits) if digits else -1
+
+
 def _brand_for_alternate(alt_notes):
     notes = (alt_notes or "").strip().lower()
     return next((b for b in PARTS_LIST_BRANDS if b.lower() == notes), None)
@@ -412,6 +424,8 @@ def parts_list():
     items = db.execute(
         """SELECT catalog_items.id, catalog_items.value AS part_number,
                   catalog_items.label, catalog_items.location AS location,
+                  catalog_items.supplier_stock AS supplier_stock,
+                  catalog_items.napa_stock AS napa_stock,
                   catalog_categories.name AS type_name
            FROM catalog_items
            JOIN catalog_categories ON catalog_categories.id = catalog_items.category_id"""
@@ -444,6 +458,15 @@ def parts_list():
         for row in link_rows:
             units_by_item.setdefault(row["catalog_item_id"], []).append(row)
 
+        flagged_ids = {
+            row["catalog_item_id"]
+            for row in db.execute(
+                f"""SELECT DISTINCT catalog_item_id FROM catalog_item_specs
+                    WHERE catalog_item_id IN ({placeholders}) AND flagged = 1""",
+                item_ids,
+            ).fetchall()
+        }
+
         for item in items:
             brands = {}
             for alt in alternates_by_item.get(item["id"], []):
@@ -457,9 +480,12 @@ def parts_list():
                 "part_number": item["part_number"] or item["label"],
                 "type": item["type_name"],
                 "location": item["location"],
+                "supplier_stock": item["supplier_stock"],
+                "napa_stock": item["napa_stock"],
                 "brands": {brand: ", ".join(values) for brand, values in brands.items()},
                 "units": units,
                 "units_count": len(units),
+                "flagged": item["id"] in flagged_ids,
             })
 
     sort = request.args.get("sort", DEFAULT_PARTS_LIST_SORT)
@@ -468,7 +494,7 @@ def parts_list():
         direction = "asc"
 
     brand_sort_keys = {b.lower(): b for b in PARTS_LIST_BRANDS}
-    sort_keys = {"part_number", "type", "location", "units_count", "used_by", *brand_sort_keys}
+    sort_keys = {"part_number", "type", "location", "supplier_stock", "napa_stock", "units_count", "used_by", "flagged", *brand_sort_keys}
     if sort not in sort_keys:
         sort = DEFAULT_PARTS_LIST_SORT
 
@@ -479,10 +505,16 @@ def parts_list():
             return (row["type"] or "").lower()
         if sort == "location":
             return (row["location"] or "").lower()
+        if sort == "supplier_stock":
+            return _stock_sort_value(row["supplier_stock"])
+        if sort == "napa_stock":
+            return _stock_sort_value(row["napa_stock"])
         if sort == "units_count":
             return row["units_count"]
         if sort == "used_by":
             return ", ".join(u["unit_number"] for u in row["units"]).lower()
+        if sort == "flagged":
+            return row["flagged"]
         brand = brand_sort_keys[sort]
         return row["brands"].get(brand, "").lower()
 
@@ -565,6 +597,11 @@ def _read_item_form(form):
         "value": form.get("value", "").strip() or None,
         "notes": form.get("notes", "").strip() or None,
         "location": form.get("location", "").strip() or None,
+        # Left as text (not cast to int) since Bytown reports overflow
+        # quantities like "10+" rather than an exact number past a point.
+        # SQLite's INTEGER affinity still stores plain numbers as integers.
+        "supplier_stock": form.get("supplier_stock", "").strip() or None,
+        "napa_stock": form.get("napa_stock", "").strip() or None,
     }
 
 
@@ -580,8 +617,8 @@ def new_item(category_id):
 
         if error is None:
             cur = db.execute(
-                "INSERT INTO catalog_items (category_id, label, value, notes, location) VALUES (?, ?, ?, ?, ?)",
-                (category_id, data["label"], data["value"], data["notes"], data["location"]),
+                "INSERT INTO catalog_items (category_id, label, value, notes, location, supplier_stock, napa_stock) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (category_id, data["label"], data["value"], data["notes"], data["location"], data["supplier_stock"], data["napa_stock"]),
             )
             db.commit()
             flash(f"Added {data['label']}.", "success")
@@ -611,8 +648,8 @@ def edit_item(item_id):
 
         if error is None:
             db.execute(
-                "UPDATE catalog_items SET label=?, value=?, notes=?, location=? WHERE id=?",
-                (data["label"], data["value"], data["notes"], data["location"], item_id),
+                "UPDATE catalog_items SET label=?, value=?, notes=?, location=?, supplier_stock=?, napa_stock=? WHERE id=?",
+                (data["label"], data["value"], data["notes"], data["location"], data["supplier_stock"], data["napa_stock"], item_id),
             )
             db.commit()
             flash("Updated.", "success")
@@ -650,9 +687,14 @@ def item_detail(item_id):
         (item_id,),
     ).fetchall()
 
+    specs = db.execute(
+        "SELECT * FROM catalog_item_specs WHERE catalog_item_id = ? ORDER BY sort_order, id",
+        (item_id,),
+    ).fetchall()
+
     return render_template(
         "catalog/item_detail.html",
-        item=item, category=category, alts=alts, used_by=used_by,
+        item=item, category=category, alts=alts, used_by=used_by, specs=specs,
     )
 
 
@@ -704,6 +746,41 @@ def delete_alternate(alternate_id):
         "catalog.index", open=item["category_id"], open_item=alt["catalog_item_id"],
         _anchor=f"item-{alt['catalog_item_id']}",
     )
+
+
+@bp.route("/items/<int:item_id>/specs/new", methods=("POST",))
+@login_required
+def new_spec(item_id):
+    db = get_db()
+    _item_or_404(db, item_id)
+    label = request.form.get("label", "").strip()
+    value = request.form.get("value", "").strip() or None
+    flagged = 1 if request.form.get("flagged") else 0
+
+    if label:
+        db.execute(
+            "INSERT INTO catalog_item_specs (catalog_item_id, label, value, flagged) VALUES (?, ?, ?, ?)",
+            (item_id, label, value, flagged),
+        )
+        db.commit()
+        flash(f"Added {label}.", "success")
+    else:
+        flash("A name is required.", "error")
+
+    return redirect(url_for("catalog.item_detail", item_id=item_id))
+
+
+@bp.route("/specs/<int:spec_id>/delete", methods=("POST",))
+@login_required
+def delete_spec(spec_id):
+    db = get_db()
+    spec = db.execute("SELECT * FROM catalog_item_specs WHERE id = ?", (spec_id,)).fetchone()
+    if spec is None:
+        abort(404)
+    db.execute("DELETE FROM catalog_item_specs WHERE id = ?", (spec_id,))
+    db.commit()
+    flash("Removed.", "success")
+    return redirect(url_for("catalog.item_detail", item_id=spec["catalog_item_id"]))
 
 
 @bp.route("/import")

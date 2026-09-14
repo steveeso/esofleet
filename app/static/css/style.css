@@ -554,8 +554,14 @@ details[open] > summary .acc-summary-main::before { transform: rotate(90deg); }
 
 .alt-notes { color: var(--color-ink-muted); font-size: 12.5px; margin-top: 2px; }
 
-.alt-add-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.alt-add-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .alt-add-form input { flex: 1; min-width: 140px; }
+
+.flag-checkbox { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--color-ink-muted); white-space: nowrap; }
+.flag-checkbox input { flex: none; width: auto; }
+
+.spec-flag { font-size: 0.85em; }
+.parts-flag-col { text-align: center; }
 
 .used-by { font-size: 13.5px; color: var(--color-ink-muted); margin-top: 4px; }
 .used-by-units a { margin-right: 2px; }

@@ -66,6 +66,11 @@ def _migrate(db):
     _ensure_column(db, "equipment_info_items", "quantity_unit", "TEXT")
     _ensure_column(db, "equipment", "plate_number", "TEXT")
     _ensure_column(db, "catalog_items", "location", "TEXT")
+    _ensure_column(db, "catalog_item_specs", "flagged", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(db, "catalog_items", "supplier_stock", "INTEGER")
+    _ensure_column(db, "catalog_items", "supplier_stock_checked_at", "TEXT")
+    _ensure_column(db, "catalog_items", "napa_stock", "INTEGER")
+    _ensure_column(db, "catalog_items", "napa_stock_checked_at", "TEXT")
 
     db.commit()
 

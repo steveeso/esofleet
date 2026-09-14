@@ -87,7 +87,7 @@
           <div class="acc-body">
             {% for catalog_item in cat_items %}
             {% set alts = alternates_by_item.get(catalog_item['id'], []) %}
-            <details id="item-{{ catalog_item['id'] }}" class="acc-item" {{ 'open' if request.args.get('open_item')|string == catalog_item['id']|string }}>
+            <details id="item-{{ catalog_item['id'] }}" class="acc-item" data-detail-url="{{ url_for('catalog.item_detail', item_id=catalog_item['id']) }}" {{ 'open' if request.args.get('open_item')|string == catalog_item['id']|string }}>
               <summary>
                 <span class="acc-summary-main">
                   <span class="acc-title">{{ catalog_item['label'] }}</span>
@@ -301,4 +301,24 @@
     </section>
   </div>
 </div>
+
+{% if categories %}
+<script>
+(function() {
+  // Clicking an already-open linked item again (instead of collapsing it)
+  // opens its own page, where every detail lives alongside an Edit button.
+  document.querySelectorAll('.acc-item').forEach(function(item) {
+    var summary = item.querySelector(':scope > summary');
+    var detailUrl = item.dataset.detailUrl;
+    if (!summary || !detailUrl) return;
+    summary.addEventListener('click', function(e) {
+      if (item.open) {
+        e.preventDefault();
+        window.location.href = detailUrl;
+      }
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

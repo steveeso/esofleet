@@ -102,6 +102,15 @@ CREATE TABLE IF NOT EXISTS catalog_items (
     value TEXT,
     notes TEXT,
     location TEXT,
+    -- Snapshot of on-hand quantity at a supplier (Bytown Diesel), looked up
+    -- by Baldwin cross-reference number. A point-in-time figure, not live —
+    -- re-check the supplier before relying on it for an actual order.
+    supplier_stock INTEGER,
+    supplier_stock_checked_at TEXT,
+    -- Same idea as supplier_stock, but for the local NAPA store, looked up
+    -- by NAPA cross-reference number via napaprolink.ca.
+    napa_stock INTEGER,
+    napa_stock_checked_at TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -111,6 +120,25 @@ CREATE TABLE IF NOT EXISTS catalog_item_alternates (
     catalog_item_id INTEGER NOT NULL REFERENCES catalog_items(id) ON DELETE CASCADE,
     value TEXT NOT NULL,
     notes TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Free-form label/value spec fields for a catalog item (dimensions, thread
+-- size, gasket ID/OD, bypass PSI, etc.) — same label/value/sort_order shape
+-- as equipment_custom_fields, since the relevant specs vary by filter type
+-- and a fixed set of columns can't cover all of them. Shown on the item's
+-- own page, never as Parts List columns (that page stays one row per part).
+-- flagged marks a spec that's uncertain or conflicts between sources (e.g.
+-- two cross-referenced part numbers gave different dimensions) — surfaced
+-- as an icon on the item page and a review column on the Parts List, so a
+-- human can eyeball anything sourced from research rather than measured.
+CREATE TABLE IF NOT EXISTS catalog_item_specs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    catalog_item_id INTEGER NOT NULL REFERENCES catalog_items(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    value TEXT,
+    flagged INTEGER NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -146,5 +174,6 @@ CREATE INDEX IF NOT EXISTS idx_enabled_fields_equipment ON equipment_enabled_fie
 CREATE INDEX IF NOT EXISTS idx_meter_readings_equipment ON equipment_meter_readings(equipment_id);
 CREATE INDEX IF NOT EXISTS idx_catalog_items_category ON catalog_items(category_id);
 CREATE INDEX IF NOT EXISTS idx_catalog_alternates_item ON catalog_item_alternates(catalog_item_id);
+CREATE INDEX IF NOT EXISTS idx_catalog_item_specs_item ON catalog_item_specs(catalog_item_id);
 CREATE INDEX IF NOT EXISTS idx_equipment_catalog_items_item ON equipment_catalog_items(catalog_item_id);
 CREATE INDEX IF NOT EXISTS idx_info_items_equipment ON equipment_info_items(equipment_id);

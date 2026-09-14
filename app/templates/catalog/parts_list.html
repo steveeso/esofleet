@@ -26,9 +26,12 @@
   <table>
     <thead>
       <tr>
+        {{ sort_th('flagged', '⚑') }}
         {{ sort_th('part_number', 'Primary part number') }}
         {{ sort_th('type', 'Type') }}
         {{ sort_th('location', 'Location') }}
+        {{ sort_th('supplier_stock', 'Bytown stock') }}
+        {{ sort_th('napa_stock', 'NAPA stock') }}
         {% for brand in brand_columns %}
         {{ sort_th(brand|lower, brand) }}
         {% endfor %}
@@ -42,9 +45,12 @@
       {% set unit_numbers = row.units|map(attribute='unit_number')|list %}
       {% set row_search = ([row.part_number or '', row.type or '', row.location or ''] + brand_values + unit_numbers)|join(' ')|lower %}
       <tr data-search="{{ row_search }}">
+        <td class="parts-flag-col">{% if row.flagged %}<span class="spec-flag" title="Has a spec flagged for review">🚩</span>{% endif %}</td>
         <td class="mono"><a class="highlightable" href="{{ url_for('catalog.item_detail', item_id=row.id) }}">{{ row.part_number or '—' }}</a></td>
         <td class="highlightable">{{ row.type }}</td>
         <td class="highlightable">{{ row.location or '—' }}</td>
+        <td class="mono">{{ row.supplier_stock if row.supplier_stock is not none else '—' }}</td>
+        <td class="mono">{{ row.napa_stock if row.napa_stock is not none else '—' }}</td>
         {% for brand in brand_columns %}
         <td class="mono highlightable">{{ row.brands.get(brand) or '—' }}</td>
         {% endfor %}

@@ -2,9 +2,10 @@
 {% block title %}{{ item['label'] }}{% endblock %}
 
 {% block content %}
+{% set has_flag = specs|selectattr('flagged')|list|length > 0 %}
 <div class="page-header">
   <div>
-    <h1>{{ item['label'] }}{% if item['value'] %} <span class="mono">{{ item['value'] }}</span>{% endif %}</h1>
+    <h1>{{ item['label'] }}{% if item['value'] %} <span class="mono">{{ item['value'] }}</span>{% endif %}{% if has_flag %} <span class="spec-flag" title="One or more specs need a human review">🚩</span>{% endif %}</h1>
     <div class="subtitle"><a href="{{ url_for('catalog.index', open=category['id'], _anchor='category-' ~ category['id']) }}">{{ category['name'] }}</a> · Parts Catalog</div>
   </div>
   <div class="actions">
@@ -18,8 +19,63 @@
       <div><div class="info-label">Part number / spec</div><div class="info-value mono">{{ item['value'] or '—' }}</div></div>
       <div><div class="info-label">Category</div><div class="info-value">{{ category['name'] }}</div></div>
       <div><div class="info-label">Location</div><div class="info-value">{{ item['location'] or '—' }}</div></div>
+      <div>
+        <div class="info-label">In stock at Bytown</div>
+        <div class="info-value">
+          {% if item['supplier_stock'] is not none %}
+          {{ item['supplier_stock'] }}
+          {% if item['supplier_stock_checked_at'] %}<span class="hint">as of {{ item['supplier_stock_checked_at'] }}</span>{% endif %}
+          {% else %}
+          —
+          {% endif %}
+        </div>
+      </div>
+      <div>
+        <div class="info-label">In stock at NAPA</div>
+        <div class="info-value">
+          {% if item['napa_stock'] is not none %}
+          {{ item['napa_stock'] }}
+          {% if item['napa_stock_checked_at'] %}<span class="hint">as of {{ item['napa_stock_checked_at'] }}</span>{% endif %}
+          {% else %}
+          —
+          {% endif %}
+        </div>
+      </div>
       <div class="full"><div class="info-label">Notes</div><div class="info-value">{{ item['notes'] or '—' }}</div></div>
     </div>
+  </div>
+</section>
+
+<section class="detail-section">
+  <div class="section-header">
+    <h2 class="section-title">Specifications</h2>
+  </div>
+  <div class="panel" style="padding: 18px 20px;">
+    {% if specs %}
+    <ul class="alt-list">
+      {% for spec in specs %}
+      <li>
+        <div>
+          <div class="info-label">{% if spec['flagged'] %}<span class="spec-flag" title="Needs a human review">🚩</span> {% endif %}{{ spec['label'] }}</div>
+          <span class="mono">{{ spec['value'] or '—' }}</span>
+        </div>
+        <form method="post" action="{{ url_for('catalog.delete_spec', spec_id=spec['id']) }}"
+              onsubmit="return confirm('Remove this spec?');">
+          <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="alt-notes">No specifications recorded yet.</div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('catalog.new_spec', item_id=item['id']) }}" class="alt-add-form" style="margin-top: 12px;">
+      <input type="text" name="label" placeholder="Spec name (e.g. Thread size)" required>
+      <input type="text" name="value" placeholder="Value (e.g. M22 x 1.5)">
+      <label class="flag-checkbox"><input type="checkbox" name="flagged" value="1"> Flag for review</label>
+      <button type="submit" class="btn btn-sm btn-primary">Add</button>
+    </form>
   </div>
 </section>
 

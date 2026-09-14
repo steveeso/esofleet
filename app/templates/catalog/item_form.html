@@ -27,6 +27,16 @@
     <label for="location">Location</label>
     <input type="text" id="location" name="location" placeholder="e.g. Shop shelf A3, Bin 12…" value="{{ item.get('location', '') or '' }}">
   </div>
+  <div class="field">
+    <label for="supplier_stock">In stock at Bytown</label>
+    <input type="text" id="supplier_stock" name="supplier_stock" placeholder="On-hand quantity, e.g. 3 or 10+" value="{{ item.get('supplier_stock', '') if item.get('supplier_stock') is not none else '' }}">
+    <div class="hint">Looked up from store.bytowndiesel.ca by Baldwin part number — a snapshot, not live.</div>
+  </div>
+  <div class="field">
+    <label for="napa_stock">In stock at NAPA</label>
+    <input type="text" id="napa_stock" name="napa_stock" placeholder="On-hand quantity, e.g. 3" value="{{ item.get('napa_stock', '') if item.get('napa_stock') is not none else '' }}">
+    <div class="hint">Looked up from napaprolink.ca by NAPA part number — a snapshot, not live.</div>
+  </div>
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">{{ 'Add item' if mode == 'new' else 'Save changes' }}</button>
