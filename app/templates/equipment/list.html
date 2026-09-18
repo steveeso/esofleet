@@ -19,7 +19,10 @@
 </div>
 
 <form class="filter-bar" method="get">
-  <input type="text" name="q" placeholder="Search unit, make, model, serial number, registration number, assignee…" value="{{ q }}">
+  <div class="search-clear-wrap">
+    <input type="text" id="equipment-search" name="q" placeholder="Search unit, make, model, serial number, registration number, assignee…" value="{{ q }}">
+    <button type="button" class="search-clear" data-clear-target="equipment-search" aria-label="Clear search" {{ 'hidden' if not q }}>&times;</button>
+  </div>
   <select name="status" onchange="this.form.submit()">
     <option value="">All statuses</option>
     {% for s in statuses %}
@@ -32,9 +35,27 @@
   {% endif %}
 </form>
 
+<script>
+(function() {
+  var input = document.getElementById('equipment-search');
+  var btn = document.querySelector('.search-clear[data-clear-target="equipment-search"]');
+  if (!input || !btn) return;
+
+  input.addEventListener('input', function() {
+    btn.hidden = !input.value;
+  });
+
+  btn.addEventListener('click', function() {
+    input.value = '';
+    input.form.submit();
+  });
+})();
+</script>
+
 <div class="panel">
   {% if items %}
-  <table>
+  <div class="table-scroll">
+  <table class="sticky-col-1">
     <thead>
       <tr>
         {{ sort_th('unit', 'Unit') }}
@@ -60,6 +81,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <div class="empty-state">
     <h3>No equipment found</h3>

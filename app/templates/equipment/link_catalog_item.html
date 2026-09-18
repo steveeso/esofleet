@@ -16,6 +16,14 @@
 <div class="section-header">
   <h2 class="section-title">Link an existing item</h2>
 </div>
+{% if linkable_by_category %}
+<div class="filter-bar">
+  <div class="search-clear-wrap">
+    <input type="text" id="link-item-search" placeholder="Search part numbers, cross-references…">
+    <button type="button" class="search-clear" data-clear-target="link-item-search" aria-label="Clear search" hidden>&times;</button>
+  </div>
+</div>
+{% endif %}
 <div class="panel" style="padding: 8px 0;">
   {% if linkable_by_category %}
   {% for category in categories %}
@@ -24,12 +32,19 @@
   <div class="link-category-group">
     <div class="link-category-name">{{ category['name'] }}</div>
     {% for catalog_item in cat_items %}
-    <form method="post" class="link-item-row">
+    {% set alt_values = alternates_by_item.get(catalog_item['id'], []) %}
+    {% set item_search = ([catalog_item['label'], catalog_item['value'] or ''] + alt_values)|join(' ')|lower %}
+    <form method="post" class="link-item-row" data-search="{{ item_search }}">
       <input type="hidden" name="action" value="link_existing">
       <input type="hidden" name="catalog_item_id" value="{{ catalog_item['id'] }}">
       <div>
-        <span>{{ catalog_item['label'] }}</span>
-        {% if catalog_item['value'] %}<span class="mono">{{ catalog_item['value'] }}</span>{% endif %}
+        <div>
+          <span class="highlightable">{{ catalog_item['label'] }}</span>
+          {% if catalog_item['value'] %}<span class="mono highlightable">{{ catalog_item['value'] }}</span>{% endif %}
+        </div>
+        {% if alt_values %}
+        <div class="link-item-alts">{% for alt in alt_values %}<span class="mono highlightable">{{ alt }}</span>{% if not loop.last %}, {% endif %}{% endfor %}</div>
+        {% endif %}
       </div>
       <input type="number" name="quantity" min="0" step="any" placeholder="Qty" class="qty-input">
       <input type="text" name="quantity_unit" placeholder="Unit" class="qty-unit-input">
@@ -39,6 +54,10 @@
   </div>
   {% endif %}
   {% endfor %}
+  <div class="empty-state" id="link-item-no-matches" hidden>
+    <h3>No matches</h3>
+    <div>Nothing in the catalog matches that search.</div>
+  </div>
   {% else %}
   <div class="empty-state">
     <h3>Nothing to link yet</h3>
@@ -95,4 +114,85 @@
     <button type="submit" class="btn btn-primary">Add to catalog and link</button>
   </div>
 </form>
+
+{% if linkable_by_category %}
+<script>
+(function() {
+  var searchInput = document.getElementById('link-item-search');
+  var rows = document.querySelectorAll('.link-item-row[data-search]');
+  var groups = document.querySelectorAll('.link-category-group');
+  var noMatches = document.getElementById('link-item-no-matches');
+  if (!searchInput || !rows.length) return;
+
+  function highlight(el, query) {
+    if (el.dataset.original === undefined) {
+      el.dataset.original = el.textContent;
+    }
+    var original = el.dataset.original;
+    if (!query) {
+      el.textContent = original;
+      return;
+    }
+    var lower = original.toLowerCase();
+    var idx = lower.indexOf(query);
+    if (idx === -1) {
+      el.textContent = original;
+      return;
+    }
+    el.textContent = '';
+    var pos = 0;
+    while (idx !== -1) {
+      el.appendChild(document.createTextNode(original.slice(pos, idx)));
+      var mark = document.createElement('mark');
+      mark.textContent = original.slice(idx, idx + query.length);
+      el.appendChild(mark);
+      pos = idx + query.length;
+      idx = lower.indexOf(query, pos);
+    }
+    el.appendChild(document.createTextNode(original.slice(pos)));
+  }
+
+  function applyFilter() {
+    var query = searchInput.value.trim().toLowerCase();
+    rows.forEach(function(row) {
+      row.hidden = !!query && (row.dataset.search || '').indexOf(query) === -1;
+      if (!row.hidden) {
+        row.querySelectorAll('.highlightable').forEach(function(el) {
+          highlight(el, query);
+        });
+      }
+    });
+    var anyVisible = false;
+    groups.forEach(function(group) {
+      var visible = group.querySelectorAll('.link-item-row:not([hidden])').length > 0;
+      group.hidden = !visible;
+      if (visible) anyVisible = true;
+    });
+    if (noMatches) noMatches.hidden = anyVisible;
+  }
+
+  function updateClearButtons() {
+    document.querySelectorAll('.search-clear').forEach(function(btn) {
+      var target = document.getElementById(btn.dataset.clearTarget);
+      btn.hidden = !target || !target.value;
+    });
+  }
+
+  searchInput.addEventListener('input', function() { applyFilter(); updateClearButtons(); });
+  applyFilter();
+  updateClearButtons();
+
+  document.querySelectorAll('.search-clear').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var target = document.getElementById(btn.dataset.clearTarget);
+      if (!target) return;
+      target.value = '';
+      target.focus();
+      applyFilter();
+      updateClearButtons();
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

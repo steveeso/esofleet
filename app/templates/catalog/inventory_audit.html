@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Parts List{% endblock %}
+{% block title %}Inventory Audit{% endblock %}
 
-{% macro sort_th(key, label) %}
+{% macro sort_th(key, label, th_class='') %}
 {% set next_dir = 'desc' if sort == key and dir == 'asc' else 'asc' %}
-<th><a href="{{ url_for('catalog.parts_list', sort=key, dir=next_dir) }}" class="sort-link">{{ label }}{% if sort == key %}<span class="sort-arrow">{{ '▲' if dir == 'asc' else '▼' }}</span>{% endif %}</a></th>
+<th class="{{ th_class }}"><a href="{{ url_for('catalog.inventory_audit', sort=key, dir=next_dir) }}" class="sort-link">{{ label }}{% if sort == key %}<span class="sort-arrow">{{ '▲' if dir == 'asc' else '▼' }}</span>{% endif %}</a></th>
 {% endmacro %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>Parts List</h1>
-    <div class="subtitle">Every catalog part in one flat, sortable table, with cross-reference numbers and where each one is used</div>
+    <h1>Inventory Audit</h1>
+    <div class="subtitle">Same list as Parts List, with an editable Location field for walking the shop and updating where things live</div>
   </div>
 </div>
 
@@ -27,6 +27,8 @@
   <datalist id="parts-list-unit-options">
     {% for u in all_units %}<option value="{{ u }}">{% endfor %}
   </datalist>
+  <label class="filter-checkbox"><input type="checkbox" id="missing-location-filter"> Only show items missing a location</label>
+  <label class="col-toggle"><input type="checkbox" id="show-all-columns"> Show all columns</label>
 </div>
 {% endif %}
 
@@ -41,34 +43,44 @@
         {{ sort_th('type', 'Type') }}
         {{ sort_th('location', 'Location') }}
         {{ sort_th('quantity_on_hand', 'Qty on hand') }}
-        {{ sort_th('supplier_stock', 'Bytown stock') }}
-        {{ sort_th('napa_stock', 'NAPA stock') }}
+        {{ sort_th('supplier_stock', 'Bytown stock', 'col-optional') }}
+        {{ sort_th('napa_stock', 'NAPA stock', 'col-optional') }}
         {% for brand in brand_columns %}
-        {{ sort_th(brand|lower, brand) }}
+        {{ sort_th(brand|lower, brand, 'col-optional') }}
         {% endfor %}
-        {{ sort_th('units_count', '# of units used in') }}
-        {{ sort_th('used_by', 'Used by') }}
+        {{ sort_th('units_count', '# of units used in', 'col-optional') }}
+        {{ sort_th('used_by', 'Used by', 'col-optional') }}
       </tr>
     </thead>
     <tbody>
       {% for row in rows %}
       {% set brand_values = row.brands.values()|list %}
       {% set unit_numbers = row.units|map(attribute='unit_number')|list %}
-      {% set row_search = ([row.part_number or '', row.type or '', row.location or ''] + brand_values + unit_numbers)|join(' ')|lower %}
+      {% set row_search = ([row.part_number or '', row.type or ''] + brand_values + unit_numbers)|join(' ')|lower %}
       {% set row_units = unit_numbers|join('|')|lower %}
       <tr data-search="{{ row_search }}" data-units="{{ row_units }}">
         <td class="parts-flag-col">{% if row.flagged %}<span class="spec-flag" title="Has a spec flagged for review">🚩</span>{% endif %}</td>
         <td class="mono"><a class="highlightable" href="{{ url_for('catalog.item_detail', item_id=row.id) }}">{{ row.part_number or '—' }}</a></td>
         <td class="highlightable">{{ row.type }}</td>
-        <td class="highlightable">{{ row.location or '—' }}</td>
-        <td class="mono">{{ row.quantity_on_hand if row.quantity_on_hand is not none else '—' }}</td>
-        <td class="mono">{{ row.supplier_stock if row.supplier_stock is not none else '—' }}</td>
-        <td class="mono">{{ row.napa_stock if row.napa_stock is not none else '—' }}</td>
-        {% for brand in brand_columns %}
-        <td class="mono highlightable">{{ row.brands.get(brand) or '—' }}</td>
-        {% endfor %}
-        <td class="mono">{{ row.units_count }}</td>
         <td>
+          <div class="location-edit-wrap">
+            <input type="text" class="location-input" data-item-id="{{ row.id }}" value="{{ row.location or '' }}" placeholder="—">
+            <span class="location-save-status"></span>
+          </div>
+        </td>
+        <td>
+          <div class="location-edit-wrap">
+            <input type="number" min="0" step="1" class="quantity-input" data-item-id="{{ row.id }}" value="{{ row.quantity_on_hand if row.quantity_on_hand is not none else '' }}" placeholder="—">
+            <span class="location-save-status"></span>
+          </div>
+        </td>
+        <td class="mono col-optional">{{ row.supplier_stock if row.supplier_stock is not none else '—' }}</td>
+        <td class="mono col-optional">{{ row.napa_stock if row.napa_stock is not none else '—' }}</td>
+        {% for brand in brand_columns %}
+        <td class="mono highlightable col-optional">{{ row.brands.get(brand) or '—' }}</td>
+        {% endfor %}
+        <td class="mono col-optional">{{ row.units_count }}</td>
+        <td class="col-optional">
           {% if row.units %}
           {% for unit in row.units %}<a class="highlightable unit-highlightable" href="{{ url_for('equipment.detail', equipment_id=unit['equipment_id']) }}">{{ unit['unit_number'] }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
           {% else %}
@@ -91,8 +103,17 @@
 {% if rows %}
 <script>
 (function() {
+  var showAllToggle = document.getElementById('show-all-columns');
+  var tableScroll = document.querySelector('.table-scroll');
+  if (showAllToggle && tableScroll) {
+    showAllToggle.addEventListener('change', function() {
+      tableScroll.classList.toggle('show-all-columns', showAllToggle.checked);
+    });
+  }
+
   var searchInput = document.getElementById('parts-list-search');
   var unitInput = document.getElementById('parts-list-unit-filter');
+  var missingLocationToggle = document.getElementById('missing-location-filter');
   var rows = document.querySelectorAll('tbody tr[data-search]');
   if (!searchInput || !rows.length) return;
 
@@ -143,13 +164,25 @@
     el.appendChild(document.createTextNode(original.slice(pos)));
   }
 
+  function rowSearchText(row) {
+    // Location lives in an editable input rather than static text, so its
+    // current value (not what was rendered at page load) is folded in here
+    // instead of being baked into data-search.
+    var locInput = row.querySelector('.location-input');
+    var loc = locInput ? locInput.value.toLowerCase() : '';
+    return (row.dataset.search || '') + ' ' + loc;
+  }
+
   function applyFilter() {
     var query = searchInput.value.trim().toLowerCase();
     var unitQuery = unitInput ? unitInput.value.trim().toLowerCase() : '';
+    var missingLocationOnly = missingLocationToggle ? missingLocationToggle.checked : false;
     rows.forEach(function(row) {
-      var matchesSearch = !query || (row.dataset.search || '').indexOf(query) !== -1;
+      var matchesSearch = !query || rowSearchText(row).indexOf(query) !== -1;
       var matchesUnit = !unitQuery || (row.dataset.units || '').indexOf(unitQuery) !== -1;
-      row.hidden = !(matchesSearch && matchesUnit);
+      var locInput = row.querySelector('.location-input');
+      var matchesLocationFilter = !missingLocationOnly || !locInput || !locInput.value.trim();
+      row.hidden = !(matchesSearch && matchesUnit && matchesLocationFilter);
       if (!row.hidden) {
         row.querySelectorAll('.highlightable').forEach(function(el) {
           // The unit-filter query only ever highlights the "Used by" unit
@@ -171,6 +204,12 @@
 
   searchInput.addEventListener('input', function() { applyFilter(); updateClearButtons(); });
   if (unitInput) unitInput.addEventListener('input', function() { applyFilter(); updateClearButtons(); });
+  if (missingLocationToggle) missingLocationToggle.addEventListener('change', applyFilter);
+  // Typing into a Location field can change whether this row still belongs
+  // in the "missing a location" view -- re-filter live, not just on save.
+  document.querySelectorAll('.location-input').forEach(function(input) {
+    input.addEventListener('input', applyFilter);
+  });
   applyFilter();
   updateClearButtons();
 
@@ -200,6 +239,67 @@
       window.location.href = url.toString();
     });
   });
+
+  // Inline field editing (Location, Quantity on hand) -- saved via fetch on
+  // blur/Enter, no page reload. Same behavior for both, different endpoint
+  // and form field name per selector/urlField. Quantity also saves shortly
+  // after typing stops (debounced), since tapping away doesn't reliably
+  // blur a number input on every phone/keyboard.
+  function bindInlineEdit(selector, urlSegment, formField, options) {
+    options = options || {};
+    document.querySelectorAll(selector).forEach(function(input) {
+      var status = input.parentElement.querySelector('.location-save-status');
+      var lastSaved = input.value;
+      var debounceTimer = null;
+
+      function setStatus(kind) {
+        if (!status) return;
+        status.textContent = kind === 'ok' ? '✓' : kind === 'error' ? '✗' : '';
+        status.className = 'location-save-status' + (kind ? ' ' + kind : '');
+        if (kind === 'ok') {
+          setTimeout(function() {
+            if (status.classList.contains('ok')) status.className = 'location-save-status';
+          }, 1500);
+        }
+      }
+
+      function save() {
+        var value = input.value.trim();
+        if (value === lastSaved) return;
+        setStatus('saving');
+        var itemId = input.dataset.itemId;
+        fetch('/catalog/items/' + itemId + '/' + urlSegment, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formField + '=' + encodeURIComponent(value),
+        })
+          .then(function(resp) { if (!resp.ok) throw new Error('save failed'); return resp.json(); })
+          .then(function() {
+            lastSaved = value;
+            setStatus('ok');
+          })
+          .catch(function() { setStatus('error'); });
+      }
+
+      if (options.liveSave) {
+        input.addEventListener('input', function() {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(save, 600);
+        });
+      }
+
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          input.blur();
+        }
+      });
+    });
+  }
+
+  bindInlineEdit('.location-input', 'location', 'location');
+  bindInlineEdit('.quantity-input', 'quantity-on-hand', 'quantity_on_hand', { liveSave: true });
 })();
 </script>
 {% endif %}

@@ -60,6 +60,25 @@ a:hover { text-decoration: underline; }
   margin-bottom: 12px;
 }
 
+.sidebar-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.nav-toggle:hover { background: #1F2630; }
+.nav-toggle span { display: block; width: 100%; height: 2px; background: #fff; border-radius: 1px; }
+
 .sidebar-brand .unit {
   display: block;
   font-size: 12px;
@@ -166,6 +185,39 @@ a:hover { text-decoration: underline; }
 table { width: 100%; border-collapse: collapse; }
 
 .table-scroll { overflow-x: auto; }
+
+/* Keep the row's identifying column in view while scrolling a wide table
+   horizontally, so a scrolled-right cell can still be tied back to its row.
+   Which column that is varies by table: Parts List / Inventory Audit lead
+   with a narrow flag column before the part number (2nd column); Equipment
+   leads straight with Unit (1st column). */
+.sticky-col-1 th:nth-child(1), .sticky-col-1 td:nth-child(1),
+.sticky-col-2 th:nth-child(2), .sticky-col-2 td:nth-child(2) {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-panel);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+}
+.sticky-col-1 th:nth-child(1), .sticky-col-2 th:nth-child(2) { background: #FAFBFB; z-index: 2; }
+
+.col-toggle {
+  display: none; /* only relevant at the <=560px breakpoint that hides .col-optional */
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
 
 mark { background: #FFE58A; color: inherit; padding: 0 1px; border-radius: 2px; }
 
@@ -300,6 +352,25 @@ textarea { resize: vertical; min-height: 70px; }
   padding: 2px 4px;
 }
 .search-clear:hover { color: var(--color-ink); }
+
+/* Inventory Audit -- inline Location / Quantity on hand editing */
+.location-edit-wrap { position: relative; display: flex; align-items: center; gap: 6px; }
+.location-input, .quantity-input {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  font-size: 13.5px;
+  font-family: var(--font-data);
+  color: var(--color-ink);
+  background: #fff;
+}
+.location-input { width: 140px; }
+.quantity-input { width: 70px; }
+.location-input:focus, .quantity-input:focus { outline: none; border-color: var(--color-primary); }
+.location-save-status { font-size: 13px; width: 14px; flex: 0 0 auto; }
+.location-save-status.ok { color: var(--color-green); }
+.location-save-status.error { color: var(--color-red); }
+.location-save-status.saving { color: var(--color-ink-muted); }
 
 /* Flash messages */
 .flash { padding: 11px 16px; border-radius: 6px; margin-bottom: 18px; font-size: 14px; }
@@ -494,8 +565,14 @@ textarea { resize: vertical; min-height: 70px; }
   gap: 12px;
   padding: 8px 0;
 }
+/* An explicit `display` on this class otherwise beats the browser's own
+   [hidden] rule (author styles win over UA defaults), so JS setting
+   row.hidden = true silently had no visual effect -- force it here. */
+.link-item-row[hidden] { display: none; }
 
 .link-item-row .mono { margin-left: 8px; }
+.link-item-alts { font-size: 12px; color: var(--color-ink-muted); margin-top: 2px; }
+.link-item-alts .mono { margin-left: 0; }
 
 /* Maintenance information — nested accordions */
 .acc-category { border-bottom: 1px solid var(--color-border); }
@@ -574,6 +651,9 @@ details[open] > summary .acc-summary-main::before { transform: rotate(90deg); }
 .alt-add-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .alt-add-form input { flex: 1; min-width: 140px; }
 
+.alt-edit-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.alt-edit-row input { flex: 1; min-width: 140px; }
+
 .flag-checkbox { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--color-ink-muted); white-space: nowrap; }
 .flag-checkbox input { flex: none; width: auto; }
 
@@ -589,15 +669,35 @@ details[open] > summary .acc-summary-main::before { transform: rotate(90deg); }
 
 @media (max-width: 880px) {
   .layout { flex-direction: column; }
-  .sidebar { width: 100%; }
+  .sidebar { width: 100%; padding: 0; border-bottom: 1px solid #2A313B; }
   .detail-grid { grid-template-columns: 1fr; }
   .page-nav-grid { grid-template-columns: 1fr; }
   .page-nav { position: static; flex-direction: row; flex-wrap: wrap; }
   .info-grid { grid-template-columns: 1fr 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .main { padding: 20px; }
+
+  /* Collapsed hamburger nav -- brand bar always shows, links/footer are
+     hidden until toggled open (see the inline script in base.html). */
+  .nav-toggle { display: flex; }
+  .sidebar-brand { padding: 12px 16px; margin-bottom: 0; border-bottom: none; }
+  #sidebar-nav, .sidebar-footer { display: none; }
+  .sidebar.nav-open #sidebar-nav { display: flex; padding: 4px 12px 12px; }
+  .sidebar.nav-open .sidebar-footer {
+    display: block;
+    padding: 12px 16px 16px;
+    margin-top: 4px;
+    border-top: 1px solid #2A313B;
+  }
 }
 
 @media (max-width: 560px) {
   .info-grid { grid-template-columns: 1fr; }
+
+  /* Inventory Audit: on a phone, default to just the columns needed for a
+     physical stocktake (part number, type, location, qty on hand) and tuck
+     the rest behind a "Show all columns" toggle instead of forcing a long
+     horizontal scroll for every row. */
+  .col-toggle { display: flex; }
+  .table-scroll:not(.show-all-columns) .col-optional { display: none; }
 }

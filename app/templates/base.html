@@ -8,16 +8,24 @@
 </head>
 <body>
   <div class="layout">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
-        EsoFleet
-        <span class="unit">Equipment &amp; maintenance tracking</span>
+        <div class="sidebar-brand-row">
+          <div>
+            EsoFleet
+            <span class="unit">Equipment &amp; maintenance tracking</span>
+          </div>
+          <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar-nav">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
       </div>
-      <nav>
+      <nav id="sidebar-nav">
         <a href="{{ url_for('dashboard.index') }}" class="{{ 'active' if request.endpoint == 'dashboard.index' }}">Dashboard</a>
         <a href="{{ url_for('equipment.list_equipment') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('equipment.') }}">Equipment</a>
-        <a href="{{ url_for('catalog.index') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') and request.endpoint != 'catalog.parts_list' }}">Parts Catalog</a>
         <a href="{{ url_for('catalog.parts_list') }}" class="{{ 'active' if request.endpoint == 'catalog.parts_list' }}">Parts List</a>
+        <a href="{{ url_for('catalog.inventory_audit') }}" class="{{ 'active' if request.endpoint == 'catalog.inventory_audit' }}">Inventory Audit</a>
+        <a href="{{ url_for('catalog.index') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') and request.endpoint not in ('catalog.parts_list', 'catalog.inventory_audit') }}">Parts Catalog</a>
         {% if g.user and g.user['role'] == 'admin' %}
         <a href="{{ url_for('users.list_users') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('users.') }}">Users</a>
         {% endif %}
@@ -40,5 +48,26 @@
       {% block content %}{% endblock %}
     </main>
   </div>
+  <script>
+  (function() {
+    var toggle = document.getElementById('nav-toggle');
+    var sidebar = document.getElementById('sidebar');
+    if (!toggle || !sidebar) return;
+
+    toggle.addEventListener('click', function() {
+      var isOpen = sidebar.classList.toggle('nav-open');
+      toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    // Collapse the drawer again once a nav link is used, so it doesn't
+    // stay open over the next page on a phone-sized screen.
+    sidebar.querySelectorAll('nav a').forEach(function(a) {
+      a.addEventListener('click', function() {
+        sidebar.classList.remove('nav-open');
+        toggle.setAttribute('aria-expanded', 'false');
+      });
+    });
+  })();
+  </script>
 </body>
 </html>

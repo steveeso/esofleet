@@ -28,6 +28,11 @@
     <input type="text" id="location" name="location" placeholder="e.g. Shop shelf A3, Bin 12…" value="{{ item.get('location', '') or '' }}">
   </div>
   <div class="field">
+    <label for="quantity_on_hand">Quantity on hand</label>
+    <input type="number" id="quantity_on_hand" name="quantity_on_hand" min="0" step="1" placeholder="e.g. 3" value="{{ item.get('quantity_on_hand', '') if item.get('quantity_on_hand') is not none else '' }}">
+    <div class="hint">Physical count from the shop, kept up to date via the Inventory Audit page.</div>
+  </div>
+  <div class="field">
     <label for="supplier_stock">In stock at Bytown</label>
     <input type="text" id="supplier_stock" name="supplier_stock" placeholder="On-hand quantity, e.g. 3 or 10+" value="{{ item.get('supplier_stock', '') if item.get('supplier_stock') is not none else '' }}">
     <div class="hint">Looked up from store.bytowndiesel.ca by Baldwin part number — a snapshot, not live.</div>
@@ -45,6 +50,32 @@
 </form>
 
 {% if mode == 'edit' %}
+{% set back_here = url_for('catalog.edit_item', item_id=item['id'], next=next) %}
+<div class="panel" style="padding: 24px; max-width: 560px; margin-top: 16px;">
+  <h2 class="subsection-title" style="margin-bottom: 14px;">Alternate part numbers / equivalents</h2>
+  {% if alts %}
+  {% for alt in alts %}
+  <form method="post" action="{{ url_for('catalog.edit_alternate', alternate_id=alt['id']) }}" class="alt-edit-row">
+    <input type="hidden" name="next" value="{{ back_here }}">
+    <input type="text" name="value" value="{{ alt['value'] }}" placeholder="Alternate part number" required>
+    <input type="text" name="notes" value="{{ alt['notes'] or '' }}" placeholder="Brand or notes (optional)">
+    <button type="submit" class="btn btn-sm">Save</button>
+    <button type="submit" formaction="{{ url_for('catalog.delete_alternate', alternate_id=alt['id']) }}"
+            formnovalidate class="btn btn-sm btn-danger">Remove</button>
+  </form>
+  {% endfor %}
+  {% else %}
+  <div class="alt-notes">No alternates recorded yet.</div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('catalog.new_alternate', item_id=item['id']) }}" class="alt-add-form" style="margin-top: 12px;">
+    <input type="hidden" name="next" value="{{ back_here }}">
+    <input type="text" name="value" placeholder="Alternate part number / spec" required>
+    <input type="text" name="notes" placeholder="Brand or notes (optional)">
+    <button type="submit" class="btn btn-sm btn-primary">Add</button>
+  </form>
+</div>
+
 <form method="post" action="{{ url_for('catalog.delete_item', item_id=item['id']) }}"
       onsubmit="return confirm('Delete this item from the catalog? It will be unlinked from every piece of equipment using it, and its alternates will be removed.');" style="margin-top: 12px;">
   <button type="submit" class="btn btn-danger">Delete from catalog</button>

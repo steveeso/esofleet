@@ -883,9 +883,21 @@ def link_catalog_item(equipment_id):
         if row["id"] not in linked_ids:
             linkable_by_category.setdefault(row["category_id"], []).append(row)
 
+    linkable_ids = [row["id"] for row in all_items if row["id"] not in linked_ids]
+    alternates_by_item = {}
+    if linkable_ids:
+        placeholders = ",".join("?" * len(linkable_ids))
+        for row in db.execute(
+            f"""SELECT catalog_item_id, value FROM catalog_item_alternates
+                WHERE catalog_item_id IN ({placeholders})""",
+            linkable_ids,
+        ):
+            alternates_by_item.setdefault(row["catalog_item_id"], []).append(row["value"])
+
     return render_template(
         "equipment/link_catalog_item.html",
         item=item, categories=categories, linkable_by_category=linkable_by_category,
+        alternates_by_item=alternates_by_item,
     )
 
 

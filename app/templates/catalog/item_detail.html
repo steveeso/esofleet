@@ -19,6 +19,7 @@
       <div><div class="info-label">Part number / spec</div><div class="info-value mono">{{ item['value'] or '—' }}</div></div>
       <div><div class="info-label">Category</div><div class="info-value">{{ category['name'] }}</div></div>
       <div><div class="info-label">Location</div><div class="info-value">{{ item['location'] or '—' }}</div></div>
+      <div><div class="info-label">Quantity on hand</div><div class="info-value">{{ item['quantity_on_hand'] if item['quantity_on_hand'] is not none else '—' }}</div></div>
       <div>
         <div class="info-label">In stock at Bytown</div>
         <div class="info-value">
@@ -124,6 +125,28 @@
     </div>
     {% else %}
     <div class="alt-notes">No equipment linked yet.</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="detail-section">
+  <div class="section-header">
+    <h2 class="section-title">Location history</h2>
+  </div>
+  <div class="panel" style="padding: 18px 20px;">
+    {% if location_history %}
+    <ul class="alt-list">
+      {% for entry in location_history %}
+      <li>
+        <div>
+          <span class="mono">{{ entry['old_location'] or '—' }} → {{ entry['new_location'] or '—' }}</span>
+          <div class="alt-notes">{{ entry['changed_at'] }}{% if entry['changed_by'] %} · {{ entry['changed_by'] }}{% endif %}</div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="alt-notes">No location changes recorded yet.</div>
     {% endif %}
   </div>
 </section>

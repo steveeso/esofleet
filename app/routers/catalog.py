@@ -2,7 +2,7 @@ import base64
 import io
 import sqlite3
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 from openpyxl import load_workbook
 
 from ..db import get_db
@@ -267,6 +267,20 @@ def _item_or_404(db, item_id):
     return item
 
 
+def _record_location_change(db, item_id, old_location, new_location):
+    """Log a Location edit for the item's Location History, if it actually
+    changed. Called from every path that can touch this field, so the log
+    stays complete regardless of whether the edit came from the Inventory
+    Audit inline editor or the regular Edit item form."""
+    if old_location == new_location:
+        return
+    db.execute(
+        """INSERT INTO catalog_item_location_history
+           (catalog_item_id, old_location, new_location, changed_by) VALUES (?, ?, ?, ?)""",
+        (item_id, old_location, new_location, g.user["username"] if g.user else None),
+    )
+
+
 def _alternate_or_404(db, alternate_id):
     alt = db.execute(
         "SELECT * FROM catalog_item_alternates WHERE id = ?", (alternate_id,)
@@ -416,14 +430,13 @@ def _brand_for_alternate(alt_notes):
     return next((b for b in PARTS_LIST_BRANDS if b.lower() == notes), None)
 
 
-@bp.route("/parts-list")
-@login_required
-def parts_list():
-    db = get_db()
-
+def _build_parts_list_rows(db):
+    """Shared row-building + sorting for the Parts List and Inventory Audit
+    pages -- same data, same search/sort behavior, different templates."""
     items = db.execute(
         """SELECT catalog_items.id, catalog_items.value AS part_number,
                   catalog_items.label, catalog_items.location AS location,
+                  catalog_items.quantity_on_hand AS quantity_on_hand,
                   catalog_items.supplier_stock AS supplier_stock,
                   catalog_items.napa_stock AS napa_stock,
                   catalog_categories.name AS type_name
@@ -480,6 +493,7 @@ def parts_list():
                 "part_number": item["part_number"] or item["label"],
                 "type": item["type_name"],
                 "location": item["location"],
+                "quantity_on_hand": item["quantity_on_hand"],
                 "supplier_stock": item["supplier_stock"],
                 "napa_stock": item["napa_stock"],
                 "brands": {brand: ", ".join(values) for brand, values in brands.items()},
@@ -499,7 +513,7 @@ def parts_list():
         direction = "asc"
 
     brand_sort_keys = {b.lower(): b for b in PARTS_LIST_BRANDS}
-    sort_keys = {"part_number", "type", "location", "supplier_stock", "napa_stock", "units_count", "used_by", "flagged", *brand_sort_keys}
+    sort_keys = {"part_number", "type", "location", "quantity_on_hand", "supplier_stock", "napa_stock", "units_count", "used_by", "flagged", *brand_sort_keys}
     if sort not in sort_keys:
         sort = DEFAULT_PARTS_LIST_SORT
 
@@ -510,6 +524,8 @@ def parts_list():
             return (row["type"] or "").lower()
         if sort == "location":
             return (row["location"] or "").lower()
+        if sort == "quantity_on_hand":
+            return row["quantity_on_hand"] if row["quantity_on_hand"] is not None else -1
         if sort == "supplier_stock":
             return _stock_sort_value(row["supplier_stock"])
         if sort == "napa_stock":
@@ -529,12 +545,62 @@ def parts_list():
     rows.sort(key=lambda r: (r["part_number"] or "").lower())
     rows.sort(key=primary_key, reverse=(direction == "desc"))
 
+    return rows, sort, direction, all_units
+
+
+@bp.route("/parts-list")
+@login_required
+def parts_list():
+    db = get_db()
+    rows, sort, direction, all_units = _build_parts_list_rows(db)
+
     return render_template(
         "catalog/parts_list.html",
         rows=rows, sort=sort, dir=direction, brand_columns=PARTS_LIST_BRANDS,
         q=request.args.get("q", ""), unit=request.args.get("unit", ""),
         all_units=all_units,
     )
+
+
+@bp.route("/inventory-audit")
+@login_required
+def inventory_audit():
+    db = get_db()
+    rows, sort, direction, all_units = _build_parts_list_rows(db)
+
+    return render_template(
+        "catalog/inventory_audit.html",
+        rows=rows, sort=sort, dir=direction, brand_columns=PARTS_LIST_BRANDS,
+        q=request.args.get("q", ""), unit=request.args.get("unit", ""),
+        all_units=all_units,
+    )
+
+
+@bp.route("/items/<int:item_id>/location", methods=("POST",))
+@login_required
+def update_item_location(item_id):
+    """Lightweight endpoint for the Inventory Audit page's inline location
+    editor -- just this one column, saved via fetch without a page reload."""
+    db = get_db()
+    item = _item_or_404(db, item_id)
+    location = request.form.get("location", "").strip() or None
+    _record_location_change(db, item_id, item["location"], location)
+    db.execute("UPDATE catalog_items SET location=? WHERE id=?", (location, item_id))
+    db.commit()
+    return {"ok": True, "location": location}
+
+
+@bp.route("/items/<int:item_id>/quantity-on-hand", methods=("POST",))
+@login_required
+def update_item_quantity_on_hand(item_id):
+    """Lightweight endpoint for the Inventory Audit page's inline quantity
+    editor -- no history log for this one, just the latest count."""
+    db = get_db()
+    _item_or_404(db, item_id)
+    quantity = _parse_quantity_on_hand(request.form)
+    db.execute("UPDATE catalog_items SET quantity_on_hand=? WHERE id=?", (quantity, item_id))
+    db.commit()
+    return {"ok": True, "quantity_on_hand": quantity}
 
 
 @bp.route("/categories/new", methods=("GET", "POST"))
@@ -597,12 +663,23 @@ def delete_category(category_id):
     return redirect(url_for("catalog.index"))
 
 
+def _parse_quantity_on_hand(form):
+    raw = form.get("quantity_on_hand", "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
 def _read_item_form(form):
     return {
         "label": form.get("label", "").strip(),
         "value": form.get("value", "").strip() or None,
         "notes": form.get("notes", "").strip() or None,
         "location": form.get("location", "").strip() or None,
+        "quantity_on_hand": _parse_quantity_on_hand(form),
         # Left as text (not cast to int) since Bytown reports overflow
         # quantities like "10+" rather than an exact number past a point.
         # SQLite's INTEGER affinity still stores plain numbers as integers.
@@ -623,8 +700,11 @@ def new_item(category_id):
 
         if error is None:
             cur = db.execute(
-                "INSERT INTO catalog_items (category_id, label, value, notes, location, supplier_stock, napa_stock) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (category_id, data["label"], data["value"], data["notes"], data["location"], data["supplier_stock"], data["napa_stock"]),
+                """INSERT INTO catalog_items
+                   (category_id, label, value, notes, location, quantity_on_hand, supplier_stock, napa_stock)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (category_id, data["label"], data["value"], data["notes"], data["location"],
+                 data["quantity_on_hand"], data["supplier_stock"], data["napa_stock"]),
             )
             db.commit()
             flash(f"Added {data['label']}.", "success")
@@ -653,9 +733,13 @@ def edit_item(item_id):
         error = None if data["label"] else "Label is required."
 
         if error is None:
+            _record_location_change(db, item_id, item["location"], data["location"])
             db.execute(
-                "UPDATE catalog_items SET label=?, value=?, notes=?, location=?, supplier_stock=?, napa_stock=? WHERE id=?",
-                (data["label"], data["value"], data["notes"], data["location"], data["supplier_stock"], data["napa_stock"], item_id),
+                """UPDATE catalog_items
+                   SET label=?, value=?, notes=?, location=?, quantity_on_hand=?, supplier_stock=?, napa_stock=?
+                   WHERE id=?""",
+                (data["label"], data["value"], data["notes"], data["location"],
+                 data["quantity_on_hand"], data["supplier_stock"], data["napa_stock"], item_id),
             )
             db.commit()
             flash("Updated.", "success")
@@ -663,12 +747,20 @@ def edit_item(item_id):
 
         flash(error, "error")
         data["id"] = item_id
+        alts = db.execute(
+            "SELECT * FROM catalog_item_alternates WHERE catalog_item_id = ? ORDER BY sort_order, value",
+            (item_id,),
+        ).fetchall()
         return render_template(
-            "catalog/item_form.html", category=category, item=data, mode="edit", next=next_url
+            "catalog/item_form.html", category=category, item=data, mode="edit", next=next_url, alts=alts
         )
 
+    alts = db.execute(
+        "SELECT * FROM catalog_item_alternates WHERE catalog_item_id = ? ORDER BY sort_order, value",
+        (item_id,),
+    ).fetchall()
     return render_template(
-        "catalog/item_form.html", category=category, item=dict(item), mode="edit", next=next_url
+        "catalog/item_form.html", category=category, item=dict(item), mode="edit", next=next_url, alts=alts
     )
 
 
@@ -698,9 +790,16 @@ def item_detail(item_id):
         (item_id,),
     ).fetchall()
 
+    location_history = db.execute(
+        """SELECT * FROM catalog_item_location_history
+           WHERE catalog_item_id = ? ORDER BY changed_at DESC, id DESC""",
+        (item_id,),
+    ).fetchall()
+
     return render_template(
         "catalog/item_detail.html",
         item=item, category=category, alts=alts, used_by=used_by, specs=specs,
+        location_history=location_history,
     )
 
 
@@ -735,6 +834,33 @@ def new_alternate(item_id):
         flash("An alternate value is required.", "error")
 
     return _next_or("catalog.index", open=item["category_id"], open_item=item_id, _anchor=f"item-{item_id}")
+
+
+@bp.route("/alternates/<int:alternate_id>/edit", methods=("POST",))
+@login_required
+def edit_alternate(alternate_id):
+    db = get_db()
+    alt = _alternate_or_404(db, alternate_id)
+    item = db.execute(
+        "SELECT category_id FROM catalog_items WHERE id = ?", (alt["catalog_item_id"],)
+    ).fetchone()
+    value = request.form.get("value", "").strip()
+    notes = request.form.get("notes", "").strip() or None
+
+    if value:
+        db.execute(
+            "UPDATE catalog_item_alternates SET value=?, notes=? WHERE id=?",
+            (value, notes, alternate_id),
+        )
+        db.commit()
+        flash("Alternate updated.", "success")
+    else:
+        flash("An alternate value is required.", "error")
+
+    return _next_or(
+        "catalog.index", open=item["category_id"], open_item=alt["catalog_item_id"],
+        _anchor=f"item-{alt['catalog_item_id']}",
+    )
 
 
 @bp.route("/alternates/<int:alternate_id>/delete", methods=("POST",))
