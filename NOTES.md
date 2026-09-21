@@ -32,6 +32,15 @@ decision is made that a future reader would otherwise have to guess at.
     metered, the convention is to just leave the reading at 0.
   - Equipment type is genuinely required (no "Unspecified" option) — the
     dashboard and equipment list both sort/group by it.
+- **Parts location grew from a free-text field into a physical wayfinding
+  feature.** It started as a plain `location` string (e.g. "Shop shelf
+  A3"). It's now optionally a real warehouse position (Aisle/Bank/Shelf)
+  that renders an actual highlighted floor plan on the part's detail page
+  — because "where is this thing" kept meaning "physically walk to the
+  correct shelf," not just "read a text label." The plain-text option is
+  kept and still the default for anything outside the warehouse (another
+  building, a vendor) — this was never meant to force every location into
+  the warehouse model.
 
 ## Data model choices worth knowing
 
@@ -60,6 +69,72 @@ decision is made that a future reader would otherwise have to guess at.
   anything not anticipated. The "+ Add field" picker on that screen offers
   both through one control (pick a known field, or type a new name), but
   they're stored and validated differently under the hood.
+- **`location` vs `location_code`**: `catalog_items.location` is always the
+  human-readable string shown everywhere (e.g. "Aisle 07, Bank B, Shelf
+  4" or free text like "Your dad's house"); `location_code` is a second,
+  optional column that's only ever non-NULL when `location` was set via
+  the warehouse picker, and holds the compact, uniform, machine-sortable
+  form ("gm_down-07-B-4") that `app/warehouse.py`'s `parse_code()` turns
+  back into a room/aisle/bank/shelf tuple for rendering the floor plan.
+  Editing `location` as plain text (the Inventory Audit page's inline
+  editor is the only place this can happen) clears `location_code` rather
+  than trying to guess whether the new text still matches — a stale code
+  would silently highlight the wrong shelf, which is worse than showing no
+  floor plan at all.
+
+## Warehouse layout and floor plan rendering
+
+- **`app/warehouse.py` is the single source of truth** for which
+  Aisle/Bank/Shelf combinations exist, in every room. It's keyed by room
+  id (`ROOMS = {"gm_down": {...}, ...}`) specifically so a second room —
+  another building, another floor — is just a new entry with its own
+  aisle layout and its own building geometry (wall outline, doors, shelf
+  rectangles), not a rewrite of the picker, the composer/parser, or the
+  renderer. Only `gm_down` exists today.
+  - Room ids can't contain a hyphen — `location_code` is
+    `room-aisle-bank-shelf`, hyphen-delimited, so a hyphen inside the room
+    id itself would make the format ambiguous to parse back apart. Use an
+    underscore instead (`gm_down`, not `gm-down`) and put the human-facing
+    name in that room's `label` (`"GM-Down"`) instead.
+  - A structure's `banks` count and `dir` (N-S vs E-W) are the only
+    things the Aisle/Bank picker and the floor-plan renderer read — so
+    they can never quietly drift out of sync with each other the way two
+    separately-maintained lists could.
+  - Wall/door geometry for a room is real, hand-measured data (traced from
+    a CubiCasa scan of the actual building plus the real shelving unit
+    dimensions — 25in deep × 6ft long × 6ft tall, 5 shelves), not
+    something the code derives or guesses. Adding a second room means
+    supplying that same kind of real measurement, not just picking numbers
+    that look reasonable.
+- **`app/floorplan.py` renders `warehouse.py`'s data as plain inline SVG**
+  — no image libraries, no filesystem or network access, nothing to
+  cache. Generating one costs microseconds, same order of magnitude as
+  rendering any other template fragment, so it's just called fresh on
+  every page load rather than optimized.
+  - Design intent: exactly one bank/shelf is ever the reason someone
+    opened the page. Everything else is deliberately pushed down in size,
+    weight, and opacity (faint gray, small type) so it reads as
+    background structure rather than competing information, and the
+    target gets a bold, high-contrast "chip" callout instead of blending
+    into a grid of equally-loud labels. If this ever needs a "no
+    highlight, show everything at full weight" overview mode, that
+    hierarchy will need revisiting — it currently assumes there's always
+    exactly one target.
+  - A structure can override where its aisle-number label is drawn
+    (`label_pos`) when the default (north of a north-south run, west of
+    an east-west one) would collide with a real neighboring structure —
+    see Aisle 08's entry in `warehouse.py`, which sits almost flush under
+    Aisle 09. This is deliberately a per-structure data override, not a
+    special case in the renderer, so it stays obvious *why* that one
+    aisle is different when someone's staring at the room, not the code.
+  - Every render takes a `uid` used to namespace its internal `<defs>`
+    element ids (e.g. the highlight drop-shadow filter). This exists
+    because the item detail page embeds the *same* rendered diagram
+    twice — a small thumbnail and a larger copy inside the expand-on-click
+    dialog — and two SVGs with identically-`id`'d `<defs>` in the same
+    HTML document collide. Any future place that embeds more than one
+    instance of a rendered diagram on one page needs to pass distinct
+    `uid`s too.
 
 ## Migration policy
 
@@ -104,3 +179,13 @@ decision is made that a future reader would otherwise have to guess at.
   scope for now — would require setting up outbound email, which hasn't
   been wanted yet. Don't build this without it being explicitly asked for.
 - No CSV import, no email/SMS alerts.
+- The warehouse location picker (item form) only ever edits the default
+  room — there's no room selector in the UI yet, since only one room
+  (`gm_down`) has a layout defined. A location in some other room would
+  still save/display fine (via `location`/`location_code`), it just
+  wouldn't be reachable from the picker's dropdowns; it'd open in "Custom"
+  mode showing the plain text instead.
+- The Inventory Audit page's inline Location editor is plain text only —
+  no Aisle/Bank/Shelf dropdowns there, by design (a compact table row
+  isn't a great place for a 3-dropdown picker). Reassigning a warehouse
+  shelf position goes through the full Edit item form.

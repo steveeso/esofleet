@@ -9,6 +9,13 @@ alternate part numbers — so one catalog entry (e.g. "Oil Filter: PN-12345")
 can be reused, and updated, across every equipment item that uses it.
 Supports multiple logins.
 
+Parts can also be given a real physical location in the parts warehouse —
+picked from an Aisle/Bank/Shelf list rather than typed free text — and a
+part's detail page then renders an actual floor plan of the warehouse with
+that exact shelf highlighted, plus a side view of the shelving unit
+highlighting which shelf. See **Where a part lives** under
+[What's included](#6-whats-included) below.
+
 Required/scheduled maintenance (due dates, overdue/due-soon tracking) is on
 hold for now; the current focus is this persistent reference info. The
 underlying maintenance-records log and due-date fields still exist in the
@@ -167,6 +174,21 @@ Once you're logged in as an admin, you can add further users from the
   and reused across the fleet. Editing an item or its alternates here (or
   from any equipment item's Maintenance Info) applies everywhere it's
   linked.
+  - **Where a part lives** — a catalog item's Location field is either a
+    warehouse shelf position (Aisle → Bank → Shelf, picked from dropdowns)
+    or free-form text for anything outside the warehouse (another
+    building, a vendor, etc.). A warehouse position is stored two ways: a
+    human-readable string ("Aisle 07, Bank B, Shelf 4") and a
+    machine-sortable code ("gm_down-07-B-4"). When a part has a warehouse
+    position, its detail page renders an actual floor plan of the room
+    with that exact bank highlighted, plus a side view of the shelving
+    unit highlighting which shelf — click either to expand it full-size.
+    The floor plan is generated as plain SVG on the server from the real
+    building layout (`app/warehouse.py`, `app/floorplan.py`) — no images,
+    nothing to cache, effectively free to render. Only one room
+    (`GM-Down`) has a floor plan defined today; the layout is written so a
+    second room is just a new entry in `warehouse.py`'s `ROOMS`, not a
+    rewrite — see NOTES.md.
 - **Maintenance records** — a service history log (date, type, cost, meter
   reading, next due date/meter reading, performed by). Logging a record
   also feeds its meter reading into the equipment's meter history. The
@@ -208,10 +230,12 @@ Once you're logged in as an admin, you can add further users from the
 ```
 EsoFleet/
   app/
-    __init__.py       # app factory
+    __init__.py        # app factory
     db.py              # database connection + CLI commands
     schema.sql         # table definitions
     seed.py            # sample data generator
+    warehouse.py       # canonical warehouse room/aisle/bank layout + location codes
+    floorplan.py       # renders warehouse.py's layout as inline SVG
     routers/           # route handlers (auth, catalog, dashboard, equipment, maintenance, users)
     templates/         # Jinja2 HTML templates
     static/css/        # stylesheet
