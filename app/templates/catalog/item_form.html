@@ -24,9 +24,81 @@
     <textarea id="notes" name="notes">{{ item.get('notes', '') or '' }}</textarea>
   </div>
   <div class="field">
-    <label for="location">Location</label>
-    <input type="text" id="location" name="location" placeholder="e.g. Shop shelf A3, Bin 12…" value="{{ item.get('location', '') or '' }}">
+    <label>Location</label>
+    <div style="display: flex; gap: 16px; margin-bottom: 8px;">
+      <label style="font-weight: normal; display: inline-flex; align-items: center; gap: 6px;">
+        <input type="radio" name="location_mode" value="warehouse" id="location-mode-warehouse"
+               {% if item.get('location_mode', 'warehouse') == 'warehouse' %}checked{% endif %}>
+        Warehouse shelf
+      </label>
+      <label style="font-weight: normal; display: inline-flex; align-items: center; gap: 6px;">
+        <input type="radio" name="location_mode" value="custom" id="location-mode-custom"
+               {% if item.get('location_mode', 'warehouse') == 'custom' %}checked{% endif %}>
+        Custom / other
+      </label>
+    </div>
+
+    <div id="location-warehouse-fields" style="display: flex; gap: 10px;">
+      <select name="location_aisle" id="location-aisle">
+        <option value="">Aisle…</option>
+        {% for a in warehouse_aisles %}
+        <option value="{{ a.number }}" data-banks="{{ a.banks | join(',') }}"
+                {% if item.get('location_aisle') == a.number %}selected{% endif %}>Aisle {{ a.number }}</option>
+        {% endfor %}
+      </select>
+      <select name="location_bank" id="location-bank">
+        <option value="">Bank…</option>
+      </select>
+      <select name="location_shelf" id="location-shelf">
+        <option value="">Shelf…</option>
+        {% for s in range(1, 6) %}
+        <option value="{{ s }}" {% if item.get('location_shelf') | string == s | string %}selected{% endif %}>Shelf {{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div id="location-custom-field">
+      <input type="text" id="location_custom" name="location_custom"
+             placeholder="e.g. Your dad's house, another building…" value="{{ item.get('location_custom', '') }}">
+    </div>
+    <div class="hint">Warehouse positions come from the parts warehouse floor plan (Aisle/Bank/Shelf) — pick Custom for anything outside it.</div>
   </div>
+
+  <script>
+    (function() {
+      var aisleSelect = document.getElementById('location-aisle');
+      var bankSelect = document.getElementById('location-bank');
+      var warehouseFields = document.getElementById('location-warehouse-fields');
+      var customField = document.getElementById('location-custom-field');
+      var modeRadios = document.querySelectorAll('input[name="location_mode"]');
+      var initialBank = "{{ item.get('location_bank', '') }}";
+
+      function populateBanks(preselect) {
+        var opt = aisleSelect.options[aisleSelect.selectedIndex];
+        var banks = (opt && opt.dataset.banks) ? opt.dataset.banks.split(',') : [];
+        bankSelect.innerHTML = '<option value="">Bank…</option>';
+        banks.forEach(function(letter) {
+          var o = document.createElement('option');
+          o.value = letter;
+          o.textContent = 'Bank ' + letter;
+          if (letter === preselect) o.selected = true;
+          bankSelect.appendChild(o);
+        });
+      }
+
+      function applyMode() {
+        var mode = document.querySelector('input[name="location_mode"]:checked').value;
+        warehouseFields.style.display = mode === 'warehouse' ? 'flex' : 'none';
+        customField.style.display = mode === 'custom' ? 'block' : 'none';
+      }
+
+      aisleSelect.addEventListener('change', function() { populateBanks(null); });
+      modeRadios.forEach(function(r) { r.addEventListener('change', applyMode); });
+
+      populateBanks(initialBank);
+      applyMode();
+    })();
+  </script>
   <div class="field">
     <label for="quantity_on_hand">Quantity on hand</label>
     <input type="number" id="quantity_on_hand" name="quantity_on_hand" min="0" step="1" placeholder="e.g. 3" value="{{ item.get('quantity_on_hand', '') if item.get('quantity_on_hand') is not none else '' }}">

@@ -5,6 +5,7 @@ import sqlite3
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 from openpyxl import load_workbook
 
+from .. import floorplan, warehouse
 from ..db import get_db
 from .auth import login_required
 
@@ -580,12 +581,16 @@ def inventory_audit():
 @login_required
 def update_item_location(item_id):
     """Lightweight endpoint for the Inventory Audit page's inline location
-    editor -- just this one column, saved via fetch without a page reload."""
+    editor -- just this one column, saved via fetch without a page reload.
+    Free text only (no aisle/bank/shelf picker in this inline editor), so
+    location_code is cleared -- it can no longer be trusted to match once
+    location has been hand-edited here. Use the full Edit item form to
+    reassign a warehouse shelf position."""
     db = get_db()
     item = _item_or_404(db, item_id)
     location = request.form.get("location", "").strip() or None
     _record_location_change(db, item_id, item["location"], location)
-    db.execute("UPDATE catalog_items SET location=? WHERE id=?", (location, item_id))
+    db.execute("UPDATE catalog_items SET location=?, location_code=NULL WHERE id=?", (location, item_id))
     db.commit()
     return {"ok": True, "location": location}
 
@@ -673,18 +678,76 @@ def _parse_quantity_on_hand(form):
         return None
 
 
+def _read_item_location(form):
+    """Reads the item form's Location picker: either a warehouse Aisle/
+    Bank/Shelf pick (composed into the human-readable + machine-sortable
+    pair via warehouse.compose) or freeform text. Returns
+    (location, location_code, error, raw) -- raw carries back the picker's
+    individual fields so the form can be redisplayed with the same
+    selection/text on a validation error."""
+    mode = form.get("location_mode", "custom")
+    raw = {
+        "location_mode": mode,
+        "location_aisle": form.get("location_aisle", ""),
+        "location_bank": form.get("location_bank", ""),
+        "location_shelf": form.get("location_shelf", ""),
+        "location_custom": form.get("location_custom", "").strip(),
+    }
+
+    if mode == "warehouse":
+        aisle, bank, shelf = raw["location_aisle"], raw["location_bank"], raw["location_shelf"]
+        if not (aisle or bank or shelf):
+            return None, None, None, raw  # nothing picked -- location is just unset, not an error
+        if not (aisle and bank and shelf):
+            return None, None, "Choose an aisle, bank, and shelf, or switch to a custom location.", raw
+        try:
+            human, code = warehouse.compose(aisle, bank, shelf)
+        except ValueError:
+            return None, None, "That aisle/bank/shelf combination doesn't exist.", raw
+        return human, code, None, raw
+
+    return raw["location_custom"] or None, None, None, raw
+
+
 def _read_item_form(form):
-    return {
+    location, location_code, location_error, location_raw = _read_item_location(form)
+    data = {
         "label": form.get("label", "").strip(),
         "value": form.get("value", "").strip() or None,
         "notes": form.get("notes", "").strip() or None,
-        "location": form.get("location", "").strip() or None,
+        "location": location,
+        "location_code": location_code,
         "quantity_on_hand": _parse_quantity_on_hand(form),
         # Left as text (not cast to int) since Bytown reports overflow
         # quantities like "10+" rather than an exact number past a point.
         # SQLite's INTEGER affinity still stores plain numbers as integers.
         "supplier_stock": form.get("supplier_stock", "").strip() or None,
         "napa_stock": form.get("napa_stock", "").strip() or None,
+    }
+    data.update(location_raw)
+    data["_location_error"] = location_error
+    return data
+
+
+def _location_picker_defaults(item):
+    """Derive the Location picker's starting state (mode + individual
+    fields) from a stored DB row, for prefilling the Edit form. Warehouse
+    positions round-trip through location_code; anything else (including
+    legacy freeform text) opens in custom mode with that text intact."""
+    parsed = warehouse.parse_code(item["location_code"]) if item["location_code"] else None
+    # The picker only edits the default room for now (no room selector in
+    # the UI yet) -- a code from some other room still displays fine as
+    # plain text via the "Location" info field, it just opens here in
+    # custom mode rather than mis-mapping onto the wrong room's aisles.
+    if parsed and parsed[0] == warehouse.DEFAULT_ROOM:
+        _room, aisle, bank, shelf = parsed
+        return {
+            "location_mode": "warehouse", "location_aisle": aisle,
+            "location_bank": bank, "location_shelf": str(shelf), "location_custom": "",
+        }
+    return {
+        "location_mode": "custom", "location_aisle": "", "location_bank": "",
+        "location_shelf": "", "location_custom": item["location"] or "",
     }
 
 
@@ -696,15 +759,15 @@ def new_item(category_id):
 
     if request.method == "POST":
         data = _read_item_form(request.form)
-        error = None if data["label"] else "Label is required."
+        error = data["_location_error"] or (None if data["label"] else "Label is required.")
 
         if error is None:
             cur = db.execute(
                 """INSERT INTO catalog_items
-                   (category_id, label, value, notes, location, quantity_on_hand, supplier_stock, napa_stock)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (category_id, label, value, notes, location, location_code, quantity_on_hand, supplier_stock, napa_stock)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (category_id, data["label"], data["value"], data["notes"], data["location"],
-                 data["quantity_on_hand"], data["supplier_stock"], data["napa_stock"]),
+                 data["location_code"], data["quantity_on_hand"], data["supplier_stock"], data["napa_stock"]),
             )
             db.commit()
             flash(f"Added {data['label']}.", "success")
@@ -714,10 +777,14 @@ def new_item(category_id):
 
         flash(error, "error")
         return render_template(
-            "catalog/item_form.html", category=category, item=data, mode="new"
+            "catalog/item_form.html", category=category, item=data, mode="new",
+            warehouse_aisles=warehouse.aisle_options(),
         )
 
-    return render_template("catalog/item_form.html", category=category, item={}, mode="new")
+    return render_template(
+        "catalog/item_form.html", category=category, item={"location_mode": "warehouse"}, mode="new",
+        warehouse_aisles=warehouse.aisle_options(),
+    )
 
 
 @bp.route("/items/<int:item_id>/edit", methods=("GET", "POST"))
@@ -730,15 +797,15 @@ def edit_item(item_id):
 
     if request.method == "POST":
         data = _read_item_form(request.form)
-        error = None if data["label"] else "Label is required."
+        error = data["_location_error"] or (None if data["label"] else "Label is required.")
 
         if error is None:
             _record_location_change(db, item_id, item["location"], data["location"])
             db.execute(
                 """UPDATE catalog_items
-                   SET label=?, value=?, notes=?, location=?, quantity_on_hand=?, supplier_stock=?, napa_stock=?
+                   SET label=?, value=?, notes=?, location=?, location_code=?, quantity_on_hand=?, supplier_stock=?, napa_stock=?
                    WHERE id=?""",
-                (data["label"], data["value"], data["notes"], data["location"],
+                (data["label"], data["value"], data["notes"], data["location"], data["location_code"],
                  data["quantity_on_hand"], data["supplier_stock"], data["napa_stock"], item_id),
             )
             db.commit()
@@ -752,15 +819,19 @@ def edit_item(item_id):
             (item_id,),
         ).fetchall()
         return render_template(
-            "catalog/item_form.html", category=category, item=data, mode="edit", next=next_url, alts=alts
+            "catalog/item_form.html", category=category, item=data, mode="edit", next=next_url, alts=alts,
+            warehouse_aisles=warehouse.aisle_options(),
         )
 
     alts = db.execute(
         "SELECT * FROM catalog_item_alternates WHERE catalog_item_id = ? ORDER BY sort_order, value",
         (item_id,),
     ).fetchall()
+    item_data = dict(item)
+    item_data.update(_location_picker_defaults(item))
     return render_template(
-        "catalog/item_form.html", category=category, item=dict(item), mode="edit", next=next_url, alts=alts
+        "catalog/item_form.html", category=category, item=item_data, mode="edit", next=next_url, alts=alts,
+        warehouse_aisles=warehouse.aisle_options(),
     )
 
 
@@ -796,10 +867,25 @@ def item_detail(item_id):
         (item_id,),
     ).fetchall()
 
+    floor_plan_svg = floor_plan_svg_dialog = shelf_elevation_svg = shelf_elevation_svg_dialog = room_label = None
+    parsed_location = warehouse.parse_code(item["location_code"]) if item["location_code"] else None
+    if parsed_location:
+        room, aisle, bank, shelf = parsed_location
+        room_label = warehouse.get_room(room)["label"]
+        # Rendered twice (a small thumbnail plus a larger copy shown in the
+        # expand-on-click dialog) -- each needs its own uid so their <defs>
+        # filter ids don't collide as duplicates in the same HTML page.
+        floor_plan_svg = floorplan.render_floor_plan(room=room, highlight=(aisle, bank), uid="fp-thumb")
+        floor_plan_svg_dialog = floorplan.render_floor_plan(room=room, highlight=(aisle, bank), uid="fp-dialog")
+        shelf_elevation_svg = floorplan.render_shelf_elevation(shelf, uid="se-thumb")
+        shelf_elevation_svg_dialog = floorplan.render_shelf_elevation(shelf, uid="se-dialog")
+
     return render_template(
         "catalog/item_detail.html",
         item=item, category=category, alts=alts, used_by=used_by, specs=specs,
-        location_history=location_history,
+        location_history=location_history, floor_plan_svg=floor_plan_svg,
+        floor_plan_svg_dialog=floor_plan_svg_dialog, shelf_elevation_svg=shelf_elevation_svg,
+        shelf_elevation_svg_dialog=shelf_elevation_svg_dialog, room_label=room_label,
     )
 
 

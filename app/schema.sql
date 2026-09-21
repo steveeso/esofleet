@@ -102,6 +102,12 @@ CREATE TABLE IF NOT EXISTS catalog_items (
     value TEXT,
     notes TEXT,
     location TEXT,
+    -- Machine-sortable form of location, e.g. "05-C-4" for "Aisle 05, Bank
+    -- C, Shelf 4" -- only set when location was assigned via the warehouse
+    -- picker (see app/warehouse.py); NULL for freeform locations, and
+    -- cleared whenever location is edited as plain text (Inventory Audit's
+    -- inline editor) since that can no longer be trusted to match.
+    location_code TEXT,
     -- Physical count from walking the shop (Inventory Audit page), distinct
     -- from supplier_stock/napa_stock which are external supplier snapshots.
     -- No history table for this one, unlike location -- just the latest count.

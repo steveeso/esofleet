@@ -18,7 +18,13 @@
     <div class="info-grid">
       <div><div class="info-label">Part number / spec</div><div class="info-value mono">{{ item['value'] or '—' }}</div></div>
       <div><div class="info-label">Category</div><div class="info-value">{{ category['name'] }}</div></div>
-      <div><div class="info-label">Location</div><div class="info-value">{{ item['location'] or '—' }}</div></div>
+      <div>
+        <div class="info-label">Location</div>
+        <div class="info-value">
+          {{ item['location'] or '—' }}
+          {% if item['location_code'] %}<span class="mono" style="color: var(--color-ink-muted); font-size: .85em;">({{ item['location_code'] }})</span>{% endif %}
+        </div>
+      </div>
       <div><div class="info-label">Quantity on hand</div><div class="info-value">{{ item['quantity_on_hand'] if item['quantity_on_hand'] is not none else '—' }}</div></div>
       <div>
         <div class="info-label">In stock at Bytown</div>
@@ -46,6 +52,93 @@
     </div>
   </div>
 </section>
+
+{% if floor_plan_svg %}
+<section class="detail-section">
+  <div class="section-header">
+    <h2 class="section-title">Where it lives</h2>
+  </div>
+  <div class="panel" style="padding: 18px 20px; display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
+    <div class="loc-map-thumb" data-dialog-target="floorplan" tabindex="0" role="button" aria-label="Expand floor plan" style="width: 280px; flex: 0 0 auto;">
+      <div class="info-label" style="margin-bottom: 8px;">{{ room_label }} — floor plan</div>
+      <div style="width: 100%;">{{ floor_plan_svg | safe }}</div>
+    </div>
+    <div class="loc-map-thumb" data-dialog-target="elevation" tabindex="0" role="button" aria-label="Expand shelving unit view" style="width: 130px; flex: 0 0 auto;">
+      <div class="info-label" style="margin-bottom: 8px;">Shelving unit</div>
+      <div style="width: 100%;">{{ shelf_elevation_svg | safe }}</div>
+    </div>
+  </div>
+</section>
+
+<dialog id="loc-map-dialog" class="loc-map-dialog">
+  <button type="button" class="loc-map-dialog-close" aria-label="Close">&times;</button>
+  <div data-dialog-panel="floorplan">
+    <div class="info-label" style="margin-bottom: 10px;">{{ room_label }} — floor plan</div>
+    {{ floor_plan_svg_dialog | safe }}
+  </div>
+  <div data-dialog-panel="elevation">
+    <div class="info-label" style="margin-bottom: 10px;">Shelving unit</div>
+    {{ shelf_elevation_svg_dialog | safe }}
+  </div>
+</dialog>
+
+<style>
+  .loc-map-thumb { cursor: pointer; border-radius: 6px; transition: opacity .12s; }
+  .loc-map-thumb:hover, .loc-map-thumb:focus-visible { opacity: .8; }
+  .loc-map-thumb:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+
+  .loc-map-dialog {
+    position: relative;
+    border: none; border-radius: 10px; padding: 24px;
+    width: fit-content; max-width: 92vw; max-height: 88vh;
+    background: var(--color-panel); color: var(--color-ink);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
+  }
+  .loc-map-dialog::backdrop { background: rgba(20, 24, 28, .55); }
+  /* The room is much taller than it is wide, so the floor plan's own
+     height -- not the dialog's width -- is what needs capping, or a wide
+     dialog just makes an even taller image. Let each SVG size itself up
+     to whichever limit (width or height) binds first -- !important because
+     the SVG carries its own inline width:100%/height:auto (a sensible
+     default for the small thumbnail), which otherwise wins by specificity. */
+  .loc-map-dialog [data-dialog-panel] svg {
+    max-width: 100% !important; max-height: 76vh !important;
+    width: auto !important; height: auto !important;
+  }
+  .loc-map-dialog-close {
+    position: absolute; top: 10px; right: 12px;
+    border: none; background: none; font-size: 22px; line-height: 1;
+    color: var(--color-ink-muted); cursor: pointer; padding: 4px 8px;
+  }
+  .loc-map-dialog-close:hover { color: var(--color-ink); }
+</style>
+
+<script>
+  (function() {
+    var dlg = document.getElementById('loc-map-dialog');
+    if (!dlg || typeof dlg.showModal !== 'function') return;
+    var panels = dlg.querySelectorAll('[data-dialog-panel]');
+
+    function openFor(target) {
+      panels.forEach(function(p) { p.hidden = p.dataset.dialogPanel !== target; });
+      dlg.showModal();
+    }
+
+    document.querySelectorAll('.loc-map-thumb').forEach(function(thumb) {
+      thumb.addEventListener('click', function() { openFor(thumb.dataset.dialogTarget); });
+      thumb.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFor(thumb.dataset.dialogTarget); }
+      });
+    });
+
+    dlg.querySelector('.loc-map-dialog-close').addEventListener('click', function() { dlg.close(); });
+    // Clicking the ::backdrop fires a click with the dialog itself as the
+    // target (nothing else was hit), so this closes on an outside click
+    // without a separate backdrop element.
+    dlg.addEventListener('click', function(e) { if (e.target === dlg) dlg.close(); });
+  })();
+</script>
+{% endif %}
 
 <section class="detail-section">
   <div class="section-header">
