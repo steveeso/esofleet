@@ -24,7 +24,7 @@
         {% for u in users %}
         <tr>
           <td>{{ u['username'] }}</td>
-          <td><span class="status {{ 'active' if u['role'] == 'admin' else 'in_shop' }}"><span class="dot"></span>{{ u['role']|capitalize }}</span></td>
+          <td><span class="status {{ 'active' if u['role'] == 'admin' else 'neutral' }}"><span class="dot"></span>{{ u['role']|capitalize }}</span></td>
           <td class="mono">{{ u['created_at'] }}</td>
           <td>
             {% if u['id'] != g.user['id'] %}

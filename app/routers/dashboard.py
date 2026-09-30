@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request
 
 from ..db import get_db
 from .auth import login_required
+from .equipment import STATUSES
 
 bp = Blueprint("dashboard", __name__)
 
@@ -71,19 +72,48 @@ def index():
     if direction not in ("asc", "desc"):
         direction = "asc"
 
-    items = db.execute(
+    all_items = db.execute(
         f"SELECT * FROM equipment ORDER BY {SORT_COLUMNS[sort]} {direction.upper()}"
     ).fetchall()
 
-    counts = {"active": 0, "in_shop": 0, "retired": 0}
-    for item in items:
+    # Tab counts always reflect the whole fleet, regardless of which tab is
+    # currently selected, so switching tabs doesn't make the other tabs'
+    # own counts appear to change.
+    type_counts = {}
+    for item in all_items:
+        t = item["equipment_type"] or "Uncategorized"
+        type_counts[t] = type_counts.get(t, 0) + 1
+
+    equipment_type = request.args.get("type", "")
+    if equipment_type:
+        type_filtered = [i for i in all_items if (i["equipment_type"] or "Uncategorized") == equipment_type]
+    else:
+        type_filtered = all_items
+
+    # Stat card counts reflect the current type tab but not the status
+    # filter itself, so clicking one status card doesn't make the other
+    # cards' own counts collapse to 0 -- same idea as the type tab counts.
+    counts = {"active": 0, "repair_required": 0, "urgent_repair_required": 0, "out_of_service": 0}
+    for item in type_filtered:
         counts[item["status"]] = counts.get(item["status"], 0) + 1
+
+    status_filter = request.args.get("status", "")
+    if status_filter not in STATUSES:
+        status_filter = ""
+    if status_filter:
+        items = [i for i in type_filtered if i["status"] == status_filter]
+    else:
+        items = type_filtered
 
     return render_template(
         "dashboard/index.html",
-        total_equipment=len(items),
+        total_equipment=len(type_filtered),
+        total_all=len(all_items),
         counts=counts,
         items=items,
+        equipment_type=equipment_type,
+        status_filter=status_filter,
+        type_counts=sorted(type_counts.items()),
         sort=sort,
         dir=direction,
     )

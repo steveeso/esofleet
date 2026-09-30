@@ -12,6 +12,9 @@
     <h1>Parts List</h1>
     <div class="subtitle">Every catalog part in one flat, sortable table, with cross-reference numbers and where each one is used</div>
   </div>
+  <div class="actions">
+    <a href="{{ url_for('catalog.parts_list_export_csv') }}" class="btn">Export CSV</a>
+  </div>
 </div>
 
 {% if rows %}

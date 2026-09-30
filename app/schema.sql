@@ -27,6 +27,17 @@ CREATE TABLE IF NOT EXISTS equipment (
     status TEXT NOT NULL DEFAULT 'active',
     assigned_to TEXT,
     notes TEXT,
+    -- Free text on purpose, not just liters: most engines are L, but this
+    -- should also take "350ci" or "1998cc" typed by hand. VIN-decode always
+    -- suggests the "X.XL" form since that's what vPIC's DisplacementL gives.
+    engine_size TEXT,
+    -- e.g. "V8", "Inline-6", "Rotary" -- built from vPIC's own
+    -- EngineConfiguration + EngineCylinders fields when decoding a VIN.
+    engine_configuration TEXT,
+    -- vPIC's GVWR weight-CLASS string (e.g. "Class 2: 6,001 - 10,000 lb"),
+    -- not an exact number -- kept separate from any future exact/licensed
+    -- GVW field so the two are never confused.
+    factory_gvw TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

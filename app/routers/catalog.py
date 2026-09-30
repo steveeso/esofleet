@@ -1,8 +1,9 @@
 import base64
+import csv
 import io
 import sqlite3
 
-from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, flash, g, redirect, render_template, request, url_for
 from openpyxl import load_workbook
 
 from .. import floorplan, warehouse
@@ -563,6 +564,43 @@ def parts_list():
     )
 
 
+@bp.route("/parts-list/export.csv")
+@login_required
+def parts_list_export_csv():
+    """Export the full Parts List as a CSV, one row per catalog part. Always
+    the complete list -- the page's search/unit filter are client-side only,
+    so there's no server-side "current view" to export a subset of."""
+    db = get_db()
+    rows, _sort, _direction, _all_units = _build_parts_list_rows(db)
+
+    header = ["Flagged", "Part Number", "Type", "Location", "Quantity On Hand", "Bytown Stock", "NAPA Stock"]
+    header += PARTS_LIST_BRANDS
+    header += ["# Units Used In", "Used By"]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(header)
+    for row in rows:
+        writer.writerow([
+            "Yes" if row["flagged"] else "",
+            row["part_number"] or "",
+            row["type"] or "",
+            row["location"] or "",
+            row["quantity_on_hand"] if row["quantity_on_hand"] is not None else "",
+            row["supplier_stock"] if row["supplier_stock"] is not None else "",
+            row["napa_stock"] if row["napa_stock"] is not None else "",
+            *[row["brands"].get(brand, "") for brand in PARTS_LIST_BRANDS],
+            row["units_count"],
+            ", ".join(u["unit_number"] for u in row["units"]),
+        ])
+
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=parts_list_export.csv"},
+    )
+
+
 @bp.route("/inventory-audit")
 @login_required
 def inventory_audit():
@@ -877,8 +915,9 @@ def item_detail(item_id):
         # filter ids don't collide as duplicates in the same HTML page.
         floor_plan_svg = floorplan.render_floor_plan(room=room, highlight=(aisle, bank), uid="fp-thumb")
         floor_plan_svg_dialog = floorplan.render_floor_plan(room=room, highlight=(aisle, bank), uid="fp-dialog")
-        shelf_elevation_svg = floorplan.render_shelf_elevation(shelf, uid="se-thumb")
-        shelf_elevation_svg_dialog = floorplan.render_shelf_elevation(shelf, uid="se-dialog")
+        num_shelves = warehouse.shelf_count(aisle, room)
+        shelf_elevation_svg = floorplan.render_shelf_elevation(shelf, num_shelves, uid="se-thumb")
+        shelf_elevation_svg_dialog = floorplan.render_shelf_elevation(shelf, num_shelves, uid="se-dialog")
 
     return render_template(
         "catalog/item_detail.html",

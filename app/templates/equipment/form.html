@@ -37,7 +37,7 @@
       <label for="status">Status *</label>
       <select id="status" name="status">
         {% for s in statuses %}
-        <option value="{{ s }}" {{ 'selected' if item.get('status', 'active') == s }}>{{ s|replace('_', ' ')|capitalize }}</option>
+        <option value="{{ s }}" {{ 'selected' if item.get('status', 'active') == s }}>{{ s|replace('_', ' ')|title }}</option>
         {% endfor %}
       </select>
     </div>

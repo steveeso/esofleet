@@ -32,7 +32,7 @@
         <td class="mono">{{ r.data.unit_number or '—' }}</td>
         <td>{{ r.data.equipment_type or '—' }}</td>
         <td>{{ r.data.year or '' }} {{ r.data.make }} {{ r.data.model }}</td>
-        <td>{{ r.data.status|replace('_', ' ')|capitalize }}</td>
+        <td>{{ r.data.status|replace('_', ' ')|title }}</td>
         <td class="mono">{{ '{:,}'.format(r.data.meter_reading) }} {{ r.data.meter_type }}</td>
         <td>
           {% if r.valid %}

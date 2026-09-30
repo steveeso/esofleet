@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 
-{% macro sort_th(key, label) %}
-{% set next_dir = 'desc' if sort == key and dir == 'asc' else 'asc' %}
-<th><a href="{{ url_for('dashboard.index', sort=key, dir=next_dir) }}" class="sort-link">{{ label }}{% if sort == key %}<span class="sort-arrow">{{ '▲' if dir == 'asc' else '▼' }}</span>{% endif %}</a></th>
+{% macro stat_card(status_value, count, label, css_class) %}
+{% set is_selected = (status_value == status_filter) if status_value else (not status_filter) %}
+{% set target_status = none if is_selected else status_value %}
+<a href="{{ url_for('dashboard.index', type=equipment_type or none, status=target_status) }}"
+   class="stat-card {{ css_class }} {{ 'selected' if is_selected }}">
+  <div class="value">{{ count }}</div>
+  <div class="label">{{ label }}</div>
+</a>
 {% endmacro %}
 
 {% block content %}
@@ -17,60 +22,50 @@
   </div>
 </div>
 
+<div class="type-tabs">
+  <a href="{{ url_for('dashboard.index') }}" class="type-tab {{ 'active' if not equipment_type }}">
+    All <span class="count">{{ total_all }}</span>
+  </a>
+  {% for type_name, type_count in type_counts %}
+  <a href="{{ url_for('dashboard.index', type=type_name) }}" class="type-tab {{ 'active' if equipment_type == type_name }}">
+    {{ type_name }} <span class="count">{{ type_count }}</span>
+  </a>
+  {% endfor %}
+</div>
+
 <div class="stat-row">
-  <div class="stat-card">
-    <div class="value">{{ total_equipment }}</div>
-    <div class="label">Total equipment</div>
-  </div>
-  <div class="stat-card active">
-    <div class="value">{{ counts.active }}</div>
-    <div class="label">Active</div>
-  </div>
-  <div class="stat-card in_shop">
-    <div class="value">{{ counts.in_shop }}</div>
-    <div class="label">In shop</div>
-  </div>
-  <div class="stat-card retired">
-    <div class="value">{{ counts.retired }}</div>
-    <div class="label">Retired</div>
-  </div>
+  {{ stat_card(none, total_equipment, 'Total equipment', '') }}
+  {{ stat_card('active', counts.active, 'Active', 'active') }}
+  {{ stat_card('repair_required', counts.repair_required, 'Repair Required', 'repair_required') }}
+  {{ stat_card('urgent_repair_required', counts.urgent_repair_required, 'Urgent Repair Required', 'urgent_repair_required') }}
+  {{ stat_card('out_of_service', counts.out_of_service, 'Out Of Service', 'out_of_service') }}
 </div>
 
 <div class="section-header">
   <h2 class="section-title">Equipment</h2>
 </div>
 
+{% if items %}
+<div class="equipment-grid">
+  {% for item in items %}
+  <a class="equipment-tile status-{{ item['status'] }}" href="{{ url_for('equipment.detail', equipment_id=item['id']) }}">
+    <div class="equipment-tile-unit">{{ item['unit_number'] }}</div>
+    <div class="equipment-tile-name">{{ item['year'] or '' }} {{ item['make'] }} {{ item['model'] }}</div>
+    <div class="equipment-tile-status">{{ item['status']|replace('_', ' ')|title }}</div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
 <div class="panel">
-  {% if items %}
-  <table>
-    <thead>
-      <tr>
-        {{ sort_th('unit', 'Unit') }}
-        {{ sort_th('type', 'Equipment type') }}
-        {{ sort_th('equipment', 'Equipment') }}
-        {{ sort_th('fuel', 'Fuel type') }}
-        {{ sort_th('meter', 'Meter') }}
-        {{ sort_th('status', 'Status') }}
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in items %}
-      <tr class="row-link" onclick="window.location='{{ url_for('equipment.detail', equipment_id=item['id']) }}'">
-        <td class="mono">{{ item['unit_number'] }}</td>
-        <td>{{ item['equipment_type'] or '—' }}</td>
-        <td>{{ item['year'] or '' }} {{ item['make'] }} {{ item['model'] }}</td>
-        <td>{{ item['fuel_type']|capitalize if item['fuel_type'] else '—' }}</td>
-        <td class="mono">{{ '{:,}'.format(item['meter_reading']) }} {{ item['meter_type'] }}</td>
-        <td><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|capitalize }}</span></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
   <div class="empty-state">
+    {% if equipment_type or status_filter %}
+    <h3>No equipment matches this filter</h3>
+    <div>Try a different tab, or <a href="{{ url_for('dashboard.index') }}">view all equipment</a>.</div>
+    {% else %}
     <h3>No equipment yet</h3>
     <div>Add your first item to get started.</div>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
+{% endif %}
 {% endblock %}

@@ -13,6 +13,8 @@
     <div class="subtitle">{{ items|length }} item{{ '' if items|length == 1 else 's' }}</div>
   </div>
   <div class="actions">
+    <a href="{{ url_for('equipment.decode_vins_batch_review') }}" class="btn">Decode all VINs</a>
+    <a href="{{ url_for('equipment.export_csv', q=q, status=status, sort=sort, dir=dir) }}" class="btn">Export CSV</a>
     <a href="{{ url_for('equipment.import_form') }}" class="btn">Import CSV</a>
     <a href="{{ url_for('equipment.new') }}" class="btn btn-primary">+ Add equipment</a>
   </div>
@@ -26,7 +28,7 @@
   <select name="status" onchange="this.form.submit()">
     <option value="">All statuses</option>
     {% for s in statuses %}
-    <option value="{{ s }}" {{ 'selected' if s == status }}>{{ s|replace('_', ' ')|capitalize }}</option>
+    <option value="{{ s }}" {{ 'selected' if s == status }}>{{ s|replace('_', ' ')|title }}</option>
     {% endfor %}
   </select>
   <button type="submit" class="btn">Search</button>
@@ -72,11 +74,20 @@
       <tr class="row-link" onclick="window.location='{{ url_for('equipment.detail', equipment_id=item['id']) }}'">
         <td class="mono">{{ item['unit_number'] }}</td>
         <td>{{ item['year'] or '' }} {{ item['make'] }} {{ item['model'] }}</td>
-        <td class="mono">{{ item['serial_number'] or '—' }}</td>
+        <td class="mono">
+          {% if item['serial_number'] %}
+          <span class="copyable-cell">
+            <span>{{ item['serial_number'] }}</span>
+            <button type="button" class="copy-btn" data-copy-value="{{ item['serial_number'] }}" aria-label="Copy serial number" title="Copy to clipboard">📋</button>
+          </span>
+          {% else %}
+          —
+          {% endif %}
+        </td>
         <td class="mono">{{ item['license_plate'] or '—' }}</td>
         <td class="mono">{{ '{:,}'.format(item['meter_reading']) }} {{ item['meter_type'] }}</td>
         <td>{{ item['assigned_to'] or '—' }}</td>
-        <td><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|capitalize }}</span></td>
+        <td><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|title }}</span></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -89,4 +100,53 @@
   </div>
   {% endif %}
 </div>
+
+<script>
+(function() {
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  // Bound directly on each button (not delegated) so stopPropagation runs
+  // before the row's own click-to-navigate handler sees the event -- a
+  // document-level listener would fire too late, after the row's bubble.
+  document.querySelectorAll('.copy-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      var value = btn.dataset.copyValue || '';
+      var showResult = function(ok) {
+        var original = btn.textContent;
+        btn.textContent = ok ? '✓' : '✗';
+        btn.classList.add(ok ? 'copied' : 'copy-failed');
+        setTimeout(function() {
+          btn.textContent = original;
+          btn.classList.remove('copied', 'copy-failed');
+        }, 1200);
+      };
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(value).then(function() {
+          showResult(true);
+        }, function() {
+          showResult(fallbackCopy(value));
+        });
+      } else {
+        showResult(fallbackCopy(value));
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}

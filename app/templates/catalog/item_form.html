@@ -42,7 +42,7 @@
       <select name="location_aisle" id="location-aisle">
         <option value="">Aisle…</option>
         {% for a in warehouse_aisles %}
-        <option value="{{ a.number }}" data-banks="{{ a.banks | join(',') }}"
+        <option value="{{ a.number }}" data-banks="{{ a.banks | join(',') }}" data-shelves="{{ a.shelves | join(',') }}"
                 {% if item.get('location_aisle') == a.number %}selected{% endif %}>Aisle {{ a.number }}</option>
         {% endfor %}
       </select>
@@ -51,9 +51,6 @@
       </select>
       <select name="location_shelf" id="location-shelf">
         <option value="">Shelf…</option>
-        {% for s in range(1, 6) %}
-        <option value="{{ s }}" {% if item.get('location_shelf') | string == s | string %}selected{% endif %}>Shelf {{ s }}</option>
-        {% endfor %}
       </select>
     </div>
 
@@ -68,10 +65,12 @@
     (function() {
       var aisleSelect = document.getElementById('location-aisle');
       var bankSelect = document.getElementById('location-bank');
+      var shelfSelect = document.getElementById('location-shelf');
       var warehouseFields = document.getElementById('location-warehouse-fields');
       var customField = document.getElementById('location-custom-field');
       var modeRadios = document.querySelectorAll('input[name="location_mode"]');
       var initialBank = "{{ item.get('location_bank', '') }}";
+      var initialShelf = "{{ item.get('location_shelf', '') }}";
 
       function populateBanks(preselect) {
         var opt = aisleSelect.options[aisleSelect.selectedIndex];
@@ -86,16 +85,30 @@
         });
       }
 
+      function populateShelves(preselect) {
+        var opt = aisleSelect.options[aisleSelect.selectedIndex];
+        var shelves = (opt && opt.dataset.shelves) ? opt.dataset.shelves.split(',') : [];
+        shelfSelect.innerHTML = '<option value="">Shelf…</option>';
+        shelves.forEach(function(num) {
+          var o = document.createElement('option');
+          o.value = num;
+          o.textContent = 'Shelf ' + num;
+          if (num === preselect) o.selected = true;
+          shelfSelect.appendChild(o);
+        });
+      }
+
       function applyMode() {
         var mode = document.querySelector('input[name="location_mode"]:checked').value;
         warehouseFields.style.display = mode === 'warehouse' ? 'flex' : 'none';
         customField.style.display = mode === 'custom' ? 'block' : 'none';
       }
 
-      aisleSelect.addEventListener('change', function() { populateBanks(null); });
+      aisleSelect.addEventListener('change', function() { populateBanks(null); populateShelves(null); });
       modeRadios.forEach(function(r) { r.addEventListener('change', applyMode); });
 
       populateBanks(initialBank);
+      populateShelves(initialShelf);
       applyMode();
     })();
   </script>

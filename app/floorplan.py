@@ -259,48 +259,94 @@ def render_floor_plan(room=warehouse.DEFAULT_ROOM, highlight=None, uid="a"):
     return "".join(parts)
 
 
-def render_shelf_elevation(shelf, highlight_label=None, uid="a"):
-    """Generic side view of a shelving unit (6ft tall, 5 shelves, shelf 1
-    at the floor) with one shelf highlighted. Not room/aisle-specific --
-    every unit in every room is built the same way -- so this only takes
-    the shelf number, not a room or aisle.
+def render_shelf_elevation(shelf, num_shelves=warehouse.DEFAULT_SHELVES_PER_BANK, uid="a"):
+    """Front (face-on) elevation of a boltless shelving unit -- steel frame
+    posts, top/bottom rails, and num_shelves particleboard-style shelf
+    boards -- with the compartment above the target shelf's board tinted
+    and that board highlighted. shelf 1 is the bottom board, shelf
+    num_shelves the top one, matching how the physical units are numbered.
+    Not room/aisle-specific beyond the shelf count -- every unit is built
+    the same way structurally -- so this takes num_shelves rather than a
+    room or aisle (callers look that count up per-aisle via
+    warehouse.shelf_count()).
 
     uid: see render_floor_plan's docstring -- give each embed of this on
     the same page its own uid so their <defs> ids don't collide."""
-    width, height, margin = 120, 250, 14
-    inner_w, inner_h = width - margin * 2, height - margin * 2
-    gap = 4
-    band_h = (inner_h - gap * (warehouse.SHELVES_PER_BANK - 1)) / warehouse.SHELVES_PER_BANK
+    shelf = int(shelf)
+    num_shelves = max(1, int(num_shelves))
+    width, height, margin = 170, 230, 14
+    post_w, rail_h = 7, 7
     shadow_id = f"locHitShadow-{uid}"
+
+    frame_left, frame_right = margin, width - margin
+    frame_top, frame_bottom = margin, height - margin
+    usable_top, usable_bottom = frame_top + rail_h, frame_bottom - rail_h
+
+    # board_y[k] (k = 1..num_shelves) is that shelf's board, shelf 1 at
+    # usable_bottom (the floor of the storage area) and shelf num_shelves
+    # at usable_top -- evenly spaced between the two.
+    if num_shelves == 1:
+        board_y = {1: (usable_top + usable_bottom) / 2}
+    else:
+        step = (usable_bottom - usable_top) / (num_shelves - 1)
+        board_y = {k: usable_bottom - (k - 1) * step for k in range(1, num_shelves + 1)}
 
     parts = [f'<svg viewBox="0 0 {width} {height}" width="{width}" height="{height}" '
              f'xmlns="http://www.w3.org/2000/svg" '
              f'style="width: 100%; height: auto; display: block; font-family: var(--font-ui);" '
-             f'role="img" aria-label="Side view of a shelving unit, Shelf {shelf} of '
-             f'{warehouse.SHELVES_PER_BANK} highlighted, shelf 1 at the floor.">']
+             f'role="img" aria-label="Front view of a {num_shelves}-shelf shelving unit, '
+             f'Shelf {shelf} of {num_shelves} highlighted, shelf 1 at the floor.">']
+    parts.append(f'<defs><filter id="{shadow_id}" x="-60%" y="-60%" width="220%" height="220%">'
+                 f'<feDropShadow dx="0" dy="0" stdDeviation="1.4" flood-color="var(--color-amber)" flood-opacity="0.55"/>'
+                 f'</filter></defs>')
     parts.append('<rect x="0" y="0" width="100%" height="100%" fill="var(--color-panel)"/>')
 
-    for i in range(warehouse.SHELVES_PER_BANK):
-        shelf_num = warehouse.SHELVES_PER_BANK - i  # shelf 5 drawn at top, shelf 1 at bottom
-        y = margin + i * (band_h + gap)
-        hit = shelf_num == int(shelf)
-        if hit:
-            parts.append(f'<rect x="{margin}" y="{y:.1f}" width="{inner_w}" height="{band_h:.1f}" rx="3" '
-                         f'fill="var(--color-amber)" filter="url(#{shadow_id})"/>')
-        else:
-            parts.append(f'<rect x="{margin}" y="{y:.1f}" width="{inner_w}" height="{band_h:.1f}" rx="3" '
-                         f'fill="var(--color-border)" fill-opacity="0.6" '
-                         f'stroke="var(--color-ink-muted)" stroke-opacity="0.35" stroke-width="1"/>')
-        tcolor = "var(--color-panel)" if hit else "var(--color-ink-muted)"
-        opacity = "1" if hit else _MUTED_OPACITY
-        fs = 15 if hit else 12
-        parts.append(f'<text x="{width / 2}" y="{y + band_h / 2 + 5:.1f}" font-size="{fs}" fill="{tcolor}" '
-                     f'fill-opacity="{opacity}" text-anchor="middle" font-weight="{"700" if hit else "400"}">'
-                     f'Shelf {shelf_num}</text>')
+    # highlighted compartment: the open space above the target board, up
+    # to the next board (or the top rail, for the topmost shelf) -- this
+    # is where items on that shelf actually sit, not the board itself.
+    if shelf in board_y:
+        comp_bottom = board_y[shelf]
+        comp_top = board_y.get(shelf + 1, usable_top)
+        parts.append(f'<rect x="{frame_left:.1f}" y="{comp_top:.1f}" width="{frame_right - frame_left:.1f}" '
+                     f'height="{comp_bottom - comp_top:.1f}" fill="var(--color-amber-bg)"/>')
 
-    parts.insert(1, f'<defs><filter id="{shadow_id}" x="-60%" y="-60%" width="220%" height="220%">'
-                    f'<feDropShadow dx="0" dy="0" stdDeviation="1.4" flood-color="var(--color-amber)" flood-opacity="0.55"/>'
-                    f'</filter></defs>')
+    # frame: posts + top/bottom rails (drawn as one steel-toned group)
+    parts.append('<g fill="var(--color-ink-muted)">')
+    parts.append(f'<rect x="{frame_left:.1f}" y="{frame_top:.1f}" width="{post_w}" height="{frame_bottom - frame_top:.1f}"/>')
+    parts.append(f'<rect x="{frame_right - post_w:.1f}" y="{frame_top:.1f}" width="{post_w}" height="{frame_bottom - frame_top:.1f}"/>')
+    parts.append(f'<rect x="{frame_left:.1f}" y="{frame_top:.1f}" width="{frame_right - frame_left:.1f}" height="{rail_h}"/>')
+    parts.append(f'<rect x="{frame_left:.1f}" y="{frame_bottom - rail_h:.1f}" width="{frame_right - frame_left:.1f}" height="{rail_h}"/>')
+    parts.append('</g>')
+
+    # punched-slot texture on the posts, purely decorative
+    parts.append('<g fill="var(--color-panel)" fill-opacity="0.6">')
+    y = usable_top + 6
+    while y < usable_bottom - 6:
+        parts.append(f'<circle cx="{frame_left + post_w / 2:.1f}" cy="{y:.1f}" r="1.1"/>')
+        parts.append(f'<circle cx="{frame_right - post_w / 2:.1f}" cy="{y:.1f}" r="1.1"/>')
+        y += 9
+    parts.append('</g>')
+
+    # shelf boards + labels
+    for k in range(1, num_shelves + 1):
+        y = board_y[k]
+        hit = k == shelf
+        board_h = 5
+        if hit:
+            parts.append(f'<rect x="{frame_left:.1f}" y="{y - board_h / 2:.1f}" width="{frame_right - frame_left:.1f}" '
+                         f'height="{board_h}" rx="1" fill="var(--color-amber)" filter="url(#{shadow_id})"/>')
+        else:
+            parts.append(f'<rect x="{frame_left:.1f}" y="{y - board_h / 2:.1f}" width="{frame_right - frame_left:.1f}" '
+                         f'height="{board_h}" rx="1" fill="var(--color-border)"/>')
+
+        comp_bottom, comp_top = y, board_y.get(k + 1, usable_top)
+        label_y = (comp_top + comp_bottom) / 2 + 4
+        fs = 14 if hit else 11
+        color = "var(--color-ink)" if hit else "var(--color-ink-muted)"
+        opacity = "1" if hit else _MUTED_OPACITY
+        parts.append(f'<text x="{width / 2}" y="{label_y:.1f}" font-size="{fs}" fill="{color}" '
+                     f'fill-opacity="{opacity}" text-anchor="middle" font-weight="{"700" if hit else "400"}">'
+                     f'Shelf {k}</text>')
 
     parts.append("</svg>")
     return "".join(parts)

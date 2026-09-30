@@ -1,6 +1,8 @@
 """Canonical shelving layout for the parts warehouse(s) -- worked out
 against a real CubiCasa building scan and the shelving units' actual
-dimensions (25in deep x 6ft long x 6ft tall, 5 shelves each).
+dimensions (25in deep x 6ft long x 6ft tall). Shelf count per bank is
+data, not a constant -- most runs are 5 shelves, but nothing assumes
+every physical unit in the building is identical.
 
 Rooms are keyed by an id (today, just "main") so a second storage room/
 building can be added later without touching existing data: each room owns
@@ -23,7 +25,7 @@ import re
 
 DEFAULT_ROOM = "gm_down"
 
-SHELVES_PER_BANK = 5  # every unit is 6ft tall with 5 shelves, regardless of room/aisle
+DEFAULT_SHELVES_PER_BANK = 5  # fallback only -- real per-structure counts live in "shelves" below
 
 # --- Room definitions ------------------------------------------------------
 #
@@ -31,9 +33,10 @@ SHELVES_PER_BANK = 5  # every unit is 6ft tall with 5 shelves, regardless of roo
 # name(s) label its face(s) (a wall-mounted run has one; a run you can
 # approach from both sides has two, keyed by which side W/E/N/S they're
 # named from), its footprint in meters (x0,x1,y0,y1), how many banks long
-# it is, and which way the banks run (NS = north-south, lettered A at the
-# north end; EW = east-west, lettered A at the west end). Bank counts here
-# are the single source of truth -- the picker and the floor-plan renderer
+# it is (banks), how many shelves tall each bank is (shelves), and which
+# way the banks run (dir: NS = north-south, lettered A at the north end;
+# EW = east-west, lettered A at the west end). Bank/shelf counts here are
+# the single source of truth -- the picker and the floor-plan renderer
 # both derive from this, so they can never drift apart.
 #
 # "building" is the room's wall outline (a polygon, meters, walked
@@ -74,7 +77,7 @@ ROOMS = {
     },
 }
 
-_CODE_RE = re.compile(r"^([a-z0-9_]+)-(\d{2})-([A-E])-([1-5])$")
+_CODE_RE = re.compile(r"^([a-z0-9_]+)-(\d{2})-([A-E])-([1-9][0-9]?)$")
 
 
 def room_ids():
@@ -91,15 +94,23 @@ def get_room(room=DEFAULT_ROOM):
 
 
 def _aisles_for_room(room):
-    """Derive {aisle_number: {'banks': n, 'dir': 'NS'|'EW'}} from a room's
-    structures, so aisle metadata always matches what's actually drawn."""
+    """Derive {aisle_number: {'banks': n, 'shelves': n, 'dir': 'NS'|'EW'}}
+    from a room's structures, so aisle metadata always matches what's
+    actually drawn. A structure's "shelves" is optional and defaults to
+    DEFAULT_SHELVES_PER_BANK -- only set it explicitly when a bank
+    genuinely has a different shelf count, same convention as
+    "label_pos"."""
     info = get_room(room)
     if not info:
         return {}
     aisles = {}
     for st in info["structures"]:
         for aisle_number in st["aisles"].values():
-            aisles[aisle_number] = {"banks": st["banks"], "dir": st["dir"]}
+            aisles[aisle_number] = {
+                "banks": st["banks"],
+                "shelves": st.get("shelves", DEFAULT_SHELVES_PER_BANK),
+                "dir": st["dir"],
+            }
     return aisles
 
 
@@ -116,8 +127,16 @@ def banks_for_aisle(aisle, room=DEFAULT_ROOM):
     return [chr(ord("A") + i) for i in range(info["banks"])]
 
 
-def shelves():
-    return list(range(1, SHELVES_PER_BANK + 1))
+def shelf_count(aisle, room=DEFAULT_ROOM):
+    """How many shelves that aisle's bank is tall, or 0 if the aisle
+    doesn't exist in that room."""
+    info = _aisles_for_room(room).get(aisle)
+    return info["shelves"] if info else 0
+
+
+def shelves_for_aisle(aisle, room=DEFAULT_ROOM):
+    """Valid shelf numbers for an aisle, e.g. [1, 2, 3, 4, 5]."""
+    return list(range(1, shelf_count(aisle, room) + 1))
 
 
 def is_valid(aisle, bank, shelf, room=DEFAULT_ROOM):
@@ -125,7 +144,7 @@ def is_valid(aisle, bank, shelf, room=DEFAULT_ROOM):
         shelf = int(shelf)
     except (TypeError, ValueError):
         return False
-    return room in ROOMS and bank in banks_for_aisle(aisle, room) and shelf in shelves()
+    return bank in banks_for_aisle(aisle, room) and shelf in shelves_for_aisle(aisle, room)
 
 
 def compose(aisle, bank, shelf, room=DEFAULT_ROOM):
@@ -162,9 +181,13 @@ def parse_code(code):
 
 
 def aisle_options(room=DEFAULT_ROOM):
-    """[{'number': '01', 'banks': ['A', ..], 'dir': 'NS'}, ...] for templates."""
+    """[{'number': '01', 'banks': ['A', ..], 'shelves': [1..5], 'dir': 'NS'}, ...]
+    for templates -- shelves is the valid shelf-number list for that
+    aisle's bank, which the item form's picker uses to populate the Shelf
+    dropdown per aisle, the same way it already does for Bank."""
     aisles = _aisles_for_room(room)
     return [
-        {"number": n, "banks": banks_for_aisle(n, room), "dir": aisles[n]["dir"]}
+        {"number": n, "banks": banks_for_aisle(n, room), "shelves": shelves_for_aisle(n, room),
+         "dir": aisles[n]["dir"]}
         for n in sorted(aisles.keys())
     ]

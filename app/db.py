@@ -60,6 +60,7 @@ def _migrate(db):
                 db.execute(f"DROP TABLE {legacy_table}")
 
     _backfill_enabled_fields(db)
+    _remap_equipment_statuses(db)
     _ensure_column(db, "equipment_catalog_items", "quantity", "REAL")
     _ensure_column(db, "equipment_info_items", "quantity", "REAL")
     _ensure_column(db, "equipment_catalog_items", "quantity_unit", "TEXT")
@@ -73,6 +74,9 @@ def _migrate(db):
     _ensure_column(db, "catalog_items", "supplier_stock_checked_at", "TEXT")
     _ensure_column(db, "catalog_items", "napa_stock", "INTEGER")
     _ensure_column(db, "catalog_items", "napa_stock_checked_at", "TEXT")
+    _ensure_column(db, "equipment", "engine_size", "TEXT")
+    _ensure_column(db, "equipment", "engine_configuration", "TEXT")
+    _ensure_column(db, "equipment", "factory_gvw", "TEXT")
 
     db.commit()
 
@@ -115,6 +119,19 @@ def _backfill_enabled_fields(db):
                 SELECT id, ? FROM equipment WHERE {field} IS NOT NULL""",
             (field,),
         )
+    _mark_migration_applied(db, name)
+
+
+def _remap_equipment_statuses(db):
+    """One-time only (tracked in schema_migrations): the equipment.status
+    vocabulary changed from active/in_shop/retired to active/repair_required/
+    urgent_repair_required/out_of_service. Remap existing rows so old values
+    don't linger as statuses the UI no longer has colors or labels for."""
+    name = "0002_remap_equipment_statuses"
+    if _migration_applied(db, name):
+        return
+    db.execute("UPDATE equipment SET status = 'repair_required' WHERE status = 'in_shop'")
+    db.execute("UPDATE equipment SET status = 'out_of_service' WHERE status = 'retired'")
     _mark_migration_applied(db, name)
 
 

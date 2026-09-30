@@ -7,9 +7,12 @@
 <div class="page-header">
   <div>
     <h1>{{ item['unit_number'] }} — {% if 'year' in enabled_fields %}{{ item['year'] }} {% endif %}{{ item['make'] }} {{ item['model'] }}</h1>
-    <div class="subtitle"><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|capitalize }}</span></div>
+    <div class="subtitle"><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|title }}</span></div>
   </div>
   <div class="actions">
+    {% if 'serial_number' in enabled_fields %}
+    <a href="{{ url_for('equipment.decode_vin_review', equipment_id=item['id']) }}" class="btn">Decode VIN</a>
+    {% endif %}
     <a href="{{ url_for('equipment.edit', equipment_id=item['id']) }}" class="btn">Edit equipment</a>
     <a href="{{ url_for('maintenance.new', equipment_id=item['id']) }}" class="btn btn-primary">+ Log maintenance</a>
   </div>
@@ -46,6 +49,15 @@
           {% endif %}
           {% if 'fuel_type' in enabled_fields %}
           <div><div class="info-label">Fuel type</div><div class="info-value">{{ item['fuel_type']|capitalize if item['fuel_type'] else '—' }}</div></div>
+          {% endif %}
+          {% if 'engine_size' in enabled_fields %}
+          <div><div class="info-label">Engine size</div><div class="info-value mono">{{ item['engine_size'] or '—' }}</div></div>
+          {% endif %}
+          {% if 'engine_configuration' in enabled_fields %}
+          <div><div class="info-label">Engine configuration</div><div class="info-value mono">{{ item['engine_configuration'] or '—' }}</div></div>
+          {% endif %}
+          {% if 'factory_gvw' in enabled_fields %}
+          <div><div class="info-label">Factory GVW</div><div class="info-value">{{ item['factory_gvw'] or '—' }}</div></div>
           {% endif %}
           {% if 'assigned_to' in enabled_fields %}
           <div><div class="info-label">Assigned to</div><div class="info-value">{{ item['assigned_to'] or '—' }}</div></div>

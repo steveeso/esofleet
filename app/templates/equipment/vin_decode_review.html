@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}VIN Decode Review{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>VIN Decode Review</h1>
+    <div class="subtitle">Tick whichever fields you want to apply, then confirm — nothing is saved until you do.</div>
+  </div>
+  <div class="actions">
+    <a href="{{ back_url }}" class="btn">Cancel</a>
+  </div>
+</div>
+
+{% if already_current %}
+<div class="flash flash-success">{{ already_current }} unit{{ '' if already_current == 1 else 's' }} already matched what's on file — nothing to review there.</div>
+{% endif %}
+
+{% if skipped_not_vin %}
+<div class="section-header">
+  <h2 class="section-title">Skipped — not a VIN ({{ skipped_not_vin|length }})</h2>
+</div>
+<div class="panel" style="padding: 14px 20px; margin-bottom: 20px;">
+  <ul class="alt-list">
+    {% for s in skipped_not_vin %}
+    <li><span class="mono">{{ s.unit_number }}</span><span class="alt-notes">{{ s.value }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if skipped_errors %}
+<div class="section-header">
+  <h2 class="section-title">Couldn't decode ({{ skipped_errors|length }})</h2>
+</div>
+<div class="panel" style="padding: 14px 20px; margin-bottom: 20px;">
+  <ul class="alt-list">
+    {% for s in skipped_errors %}
+    <li><span class="mono">{{ s.unit_number }}</span><span class="alt-notes">{{ s.vin }} — {{ s.reason }}</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if units %}
+<form method="post" action="{{ confirm_url }}">
+  <input type="hidden" name="payload" value="{{ payload }}">
+
+  {% for unit in units %}
+  <div class="section-header">
+    <h2 class="section-title">{{ unit.unit_number }} <span class="mono" style="font-weight: 400;">{{ unit.vin }}</span></h2>
+  </div>
+  {% if unit.has_error %}
+  <div class="flash flash-error">vPIC flagged this VIN (error {{ unit.error_code }}): {{ unit.error_text }}</div>
+  {% endif %}
+  <div class="panel" style="margin-bottom: 24px;">
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Field</th>
+          <th>Current</th>
+          <th>Decoded</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in unit.fields %}
+        <tr>
+          <td><input type="checkbox" name="apply__{{ unit.equipment_id }}__{{ f.field }}" {{ 'checked' if f.checked_default }}></td>
+          <td>{{ f.label }}</td>
+          <td class="mono">{{ f.display_current }}</td>
+          <td class="mono">{{ f.display_decoded }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Apply checked fields</button>
+    <a href="{{ back_url }}" class="btn">Cancel</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,11 +1,14 @@
+import base64
 import csv
 import io
+import json
 import sqlite3
 from datetime import date
 
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 
 from ..db import get_db
+from ..vpic import decode_vin, decode_vins_batch, is_valid_vin
 from .auth import login_required
 from .catalog import get_linked_tree
 
@@ -24,7 +27,7 @@ SORT_COLUMNS = {
 }
 DEFAULT_SORT = "unit"
 
-STATUSES = ["active", "in_shop", "retired"]
+STATUSES = ["active", "repair_required", "urgent_repair_required", "out_of_service"]
 METER_TYPES = ["kilometers", "hours", "miles"]
 FUEL_TYPES = ["gasoline", "diesel", "propane", "electric", "other"]
 # Not enforced in the database — expected to grow over time.
@@ -34,17 +37,23 @@ EQUIPMENT_TYPES = [
 ]
 
 # CSV imports of "Online"/"Offline" style status columns.
-IMPORT_STATUS_ALIASES = {"online": "active", "offline": "in_shop"}
+IMPORT_STATUS_ALIASES = {"online": "active", "offline": "out_of_service"}
 
 # Optional built-in fields — off by default, added/removed per equipment
 # item the same way custom fields are. Order here is display order.
-OPTIONAL_FIELDS = ["year", "serial_number", "license_plate", "plate_number", "fuel_type", "assigned_to", "notes"]
+OPTIONAL_FIELDS = [
+    "year", "serial_number", "license_plate", "plate_number", "fuel_type",
+    "engine_size", "engine_configuration", "factory_gvw", "assigned_to", "notes",
+]
 OPTIONAL_FIELD_LABELS = {
     "year": "Year",
     "serial_number": "Serial number",
     "license_plate": "Registration number",
     "plate_number": "License plate",
     "fuel_type": "Fuel type",
+    "engine_size": "Engine size",
+    "engine_configuration": "Engine configuration",
+    "factory_gvw": "Factory GVW",
     "assigned_to": "Assigned to",
     "notes": "Notes",
 }
@@ -54,6 +63,64 @@ IMPORT_COLUMNS = [
     "meter_type", "meter_reading", "year", "serial_number",
     "license_plate", "fuel_type", "assigned_to", "notes",
 ]
+
+# Export dumps every core column (raw stored values, not display labels) so
+# it round-trips safely through re-import -- a superset of IMPORT_COLUMNS
+# since plate_number didn't exist yet when that list was written.
+EXPORT_COLUMNS = [
+    "unit_number", "equipment_type", "make", "model", "year",
+    "serial_number", "license_plate", "plate_number", "fuel_type",
+    "engine_size", "engine_configuration", "factory_gvw",
+    "meter_type", "meter_reading", "status", "assigned_to", "notes",
+]
+
+
+# Sort whitelist for the Equipment Table page -- every fixed column, unlike
+# SORT_COLUMNS above which only covers what the compact Equipment list
+# shows. Custom fields aren't included since they're ad-hoc per unit and
+# don't form a consistent column across the whole fleet.
+TABLE_SORT_COLUMNS = {
+    "unit": "unit_number",
+    "type": "equipment_type IS NULL, equipment_type",
+    "equipment": "make, model, year",
+    "serial": "serial_number IS NULL, serial_number",
+    "registration": "license_plate IS NULL, license_plate",
+    "plate": "plate_number IS NULL, plate_number",
+    "fuel": "fuel_type IS NULL, fuel_type",
+    "engine_size": "engine_size IS NULL, engine_size",
+    "engine_configuration": "engine_configuration IS NULL, engine_configuration",
+    "factory_gvw": "factory_gvw IS NULL, factory_gvw",
+    "meter": "meter_reading",
+    "status": "status",
+    "assigned": "assigned_to IS NULL, assigned_to",
+    "notes": "notes IS NULL, notes",
+}
+TABLE_DEFAULT_SORT = "unit"
+
+
+@bp.route("/table")
+@login_required
+def table():
+    """A flat, sortable, every-column view of the whole fleet -- same
+    search-is-client-side/sort-is-a-server-side-reload split as the Parts
+    List page. Custom per-unit fields aren't shown here (see the table's
+    comment above); they still live on each unit's own detail page."""
+    db = get_db()
+    sort = request.args.get("sort", TABLE_DEFAULT_SORT)
+    if sort not in TABLE_SORT_COLUMNS:
+        sort = TABLE_DEFAULT_SORT
+    direction = request.args.get("dir", "asc")
+    if direction not in ("asc", "desc"):
+        direction = "asc"
+
+    items = db.execute(
+        f"SELECT * FROM equipment ORDER BY {TABLE_SORT_COLUMNS[sort]} {direction.upper()}"
+    ).fetchall()
+
+    return render_template(
+        "equipment/table.html",
+        items=items, sort=sort, dir=direction, q=request.args.get("q", ""),
+    )
 
 
 @bp.route("/")
@@ -98,6 +165,262 @@ def list_equipment():
         sort=sort,
         dir=direction,
     )
+
+
+@bp.route("/export.csv")
+@login_required
+def export_csv():
+    """Export the current search/status/sort view (same filters as the
+    Equipment list page) as a CSV, one row per unit."""
+    db = get_db()
+    q = request.args.get("q", "").strip()
+    status = request.args.get("status", "")
+
+    # Validated against TABLE_SORT_COLUMNS (a strict superset of SORT_COLUMNS)
+    # so this link works whether it came from the compact Equipment list or
+    # the full-width Equipment Table, regardless of which column was sorted.
+    sort = request.args.get("sort", TABLE_DEFAULT_SORT)
+    if sort not in TABLE_SORT_COLUMNS:
+        sort = TABLE_DEFAULT_SORT
+    direction = request.args.get("dir", "asc")
+    if direction not in ("asc", "desc"):
+        direction = "asc"
+
+    query = "SELECT * FROM equipment WHERE 1=1"
+    params = []
+
+    if q:
+        query += """ AND (
+            unit_number LIKE ? OR make LIKE ? OR model LIKE ?
+            OR serial_number LIKE ? OR license_plate LIKE ? OR assigned_to LIKE ?
+        )"""
+        like = f"%{q}%"
+        params += [like] * 6
+
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+
+    query += f" ORDER BY {TABLE_SORT_COLUMNS[sort]} {direction.upper()}"
+    items = db.execute(query, params).fetchall()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(EXPORT_COLUMNS)
+    for item in items:
+        writer.writerow([item[col] if item[col] is not None else "" for col in EXPORT_COLUMNS])
+
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=equipment_export.csv"},
+    )
+
+
+# Fields a VIN decode can ever suggest a value for -- the 3 core columns
+# (only ever editable via the main equipment form otherwise) plus 4 of the
+# optional fields. Labels reuse OPTIONAL_FIELD_LABELS where it applies.
+VIN_DECODE_FIELD_LABELS = {
+    "year": "Year", "make": "Make", "model": "Model",
+    "engine_size": OPTIONAL_FIELD_LABELS["engine_size"],
+    "engine_configuration": OPTIONAL_FIELD_LABELS["engine_configuration"],
+    "factory_gvw": OPTIONAL_FIELD_LABELS["factory_gvw"],
+    "fuel_type": OPTIONAL_FIELD_LABELS["fuel_type"],
+}
+
+
+def _decode_fields_for_item(item, decoded):
+    """Turns one decode_vin()/decode_vins_batch()-shaped result into the
+    review screen's per-field rows for a single unit -- skipping any field
+    vPIC didn't suggest a value for, or where the suggestion already
+    matches what's on file. Every remaining row defaults unchecked unless
+    the current value is empty, so nothing overwrites without an explicit
+    tick on the review screen."""
+    rows = []
+    for field, decoded_value in decoded.get("suggestions", {}).items():
+        current_value = item[field]
+        if field == "fuel_type":
+            # Stored/compared lowercase, but should read as a normal word
+            # like everywhere else fuel_type is displayed.
+            if (current_value or None) == decoded_value:
+                continue
+            display_current = (current_value or "").capitalize() or None
+            display_decoded = (decoded_value or "").capitalize()
+        else:
+            if current_value == decoded_value:
+                continue
+            display_current = current_value
+            display_decoded = decoded_value
+        rows.append({
+            "field": field,
+            "label": VIN_DECODE_FIELD_LABELS.get(field, field),
+            "decoded": decoded_value,
+            "display_current": display_current if display_current not in (None, "") else "—",
+            "display_decoded": display_decoded,
+            "checked_default": not current_value,
+        })
+    return rows
+
+
+@bp.route("/<int:equipment_id>/decode-vin")
+@login_required
+def decode_vin_review(equipment_id):
+    item = _equipment_or_404(equipment_id)
+    vin = (item["serial_number"] or "").strip()
+
+    if not is_valid_vin(vin):
+        flash("This unit's Serial Number isn't a 17-character VIN, so it can't be decoded.", "error")
+        return redirect(url_for("equipment.detail", equipment_id=equipment_id))
+
+    decoded = decode_vin(vin)
+    if not decoded.get("ok"):
+        flash(f"Couldn't reach NHTSA's vPIC service: {decoded.get('network_error')}", "error")
+        return redirect(url_for("equipment.detail", equipment_id=equipment_id))
+
+    fields = _decode_fields_for_item(item, decoded)
+    if not fields and not decoded["has_error"]:
+        flash("vPIC decoded this VIN, but every field it returned already matches what's on file.", "success")
+        return redirect(url_for("equipment.detail", equipment_id=equipment_id))
+
+    units = [{
+        "equipment_id": equipment_id,
+        "unit_number": item["unit_number"],
+        "vin": vin,
+        "has_error": decoded["has_error"],
+        "error_code": decoded["error_code"],
+        "error_text": decoded["error_text"],
+        "fields": fields,
+    }]
+    payload = base64.b64encode(json.dumps(units).encode("utf-8")).decode("ascii")
+
+    return render_template(
+        "equipment/vin_decode_review.html",
+        units=units, skipped_not_vin=[], skipped_errors=[], payload=payload,
+        confirm_url=url_for("equipment.decode_vin_confirm"),
+        back_url=url_for("equipment.detail", equipment_id=equipment_id),
+    )
+
+
+@bp.route("/decode-vins")
+@login_required
+def decode_vins_batch_review():
+    db = get_db()
+    items = db.execute("SELECT * FROM equipment ORDER BY unit_number").fetchall()
+
+    eligible = []
+    skipped_not_vin = []
+    for item in items:
+        vin = (item["serial_number"] or "").strip()
+        if is_valid_vin(vin):
+            eligible.append(item)
+        else:
+            skipped_not_vin.append({
+                "unit_number": item["unit_number"],
+                "value": item["serial_number"] or "(empty)",
+            })
+
+    if not eligible:
+        flash("No units have a 17-character VIN in their Serial Number field.", "error")
+        return redirect(url_for("equipment.list_equipment"))
+
+    decoded_by_vin = decode_vins_batch([(item["serial_number"] or "").strip() for item in eligible])
+
+    units = []
+    skipped_errors = []
+    already_current = 0
+    for item in eligible:
+        vin = (item["serial_number"] or "").strip()
+        decoded = decoded_by_vin.get(vin)
+        if decoded is None or not decoded.get("ok"):
+            skipped_errors.append({
+                "unit_number": item["unit_number"],
+                "vin": vin,
+                "reason": (decoded or {}).get("network_error") or "vPIC returned no data for this VIN.",
+            })
+            continue
+
+        fields = _decode_fields_for_item(item, decoded)
+        if not fields and not decoded["has_error"]:
+            already_current += 1
+            continue
+
+        units.append({
+            "equipment_id": item["id"],
+            "unit_number": item["unit_number"],
+            "vin": vin,
+            "has_error": decoded["has_error"],
+            "error_code": decoded["error_code"],
+            "error_text": decoded["error_text"],
+            "fields": fields,
+        })
+
+    if not units:
+        flash(
+            f"Decoded {len(eligible)} VIN{'' if len(eligible) == 1 else 's'} — "
+            f"{already_current} already matched what's on file, nothing left to review.",
+            "success",
+        )
+        return redirect(url_for("equipment.list_equipment"))
+
+    payload = base64.b64encode(json.dumps(units).encode("utf-8")).decode("ascii")
+    return render_template(
+        "equipment/vin_decode_review.html",
+        units=units, skipped_not_vin=skipped_not_vin, skipped_errors=skipped_errors,
+        already_current=already_current, payload=payload,
+        confirm_url=url_for("equipment.decode_vin_confirm"),
+        back_url=url_for("equipment.list_equipment"),
+    )
+
+
+@bp.route("/decode-vin/confirm", methods=("POST",))
+@login_required
+def decode_vin_confirm():
+    try:
+        units = json.loads(base64.b64decode(request.form.get("payload", "")).decode("utf-8"))
+    except (ValueError, TypeError):
+        flash("Something went wrong — try decoding again.", "error")
+        return redirect(url_for("equipment.list_equipment"))
+
+    db = get_db()
+    applied_units = 0
+    applied_fields = 0
+    for unit in units:
+        equipment_id = unit["equipment_id"]
+        updates = {}
+        for f in unit["fields"]:
+            if request.form.get(f"apply__{equipment_id}__{f['field']}"):
+                updates[f["field"]] = f["decoded"]
+        if not updates:
+            continue
+
+        set_clause = ", ".join(f"{col} = ?" for col in updates)
+        db.execute(
+            f"UPDATE equipment SET {set_clause}, updated_at = datetime('now') WHERE id = ?",
+            [*updates.values(), equipment_id],
+        )
+        for field in updates:
+            if field in OPTIONAL_FIELDS:
+                db.execute(
+                    "INSERT OR IGNORE INTO equipment_enabled_fields (equipment_id, field_name) VALUES (?, ?)",
+                    (equipment_id, field),
+                )
+        applied_units += 1
+        applied_fields += len(updates)
+
+    db.commit()
+
+    if applied_fields:
+        flash(
+            f"Applied {applied_fields} field{'' if applied_fields == 1 else 's'} "
+            f"across {applied_units} unit{'' if applied_units == 1 else 's'}.",
+            "success",
+        )
+    else:
+        flash("Nothing was checked, so nothing was changed.", "error")
+
+    if len(units) == 1:
+        return redirect(url_for("equipment.detail", equipment_id=units[0]["equipment_id"]))
+    return redirect(url_for("equipment.list_equipment"))
 
 
 def _normalize_header(name):
