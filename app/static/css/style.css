@@ -421,8 +421,10 @@ textarea { resize: vertical; min-height: 70px; }
 .search-clear:hover { color: var(--color-ink); }
 
 /* Inventory Audit -- inline Location / Quantity on hand editing */
-.location-edit-wrap { position: relative; display: flex; align-items: center; gap: 6px; }
-.location-input, .quantity-input {
+.location-edit-wrap { position: relative; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.location-input, .quantity-input,
+.location-mode-select, .location-aisle-select, .location-bank-select,
+.location-shelf-select, .location-custom-input {
   padding: 5px 8px;
   border: 1px solid var(--color-border);
   border-radius: 5px;
@@ -433,7 +435,15 @@ textarea { resize: vertical; min-height: 70px; }
 }
 .location-input { width: 140px; }
 .quantity-input { width: 70px; }
-.location-input:focus, .quantity-input:focus { outline: none; border-color: var(--color-primary); }
+.location-mode-select { width: 108px; }
+.location-aisle-select { width: 80px; }
+.location-bank-select { width: 70px; }
+.location-shelf-select { width: 72px; }
+.location-custom-input { width: 140px; }
+.location-warehouse-fields { display: inline-flex; gap: 6px; }
+.location-input:focus, .quantity-input:focus,
+.location-mode-select:focus, .location-aisle-select:focus, .location-bank-select:focus,
+.location-shelf-select:focus, .location-custom-input:focus { outline: none; border-color: var(--color-primary); }
 .location-save-status { font-size: 13px; width: 14px; flex: 0 0 auto; }
 .location-save-status.ok { color: var(--color-green); }
 .location-save-status.error { color: var(--color-red); }

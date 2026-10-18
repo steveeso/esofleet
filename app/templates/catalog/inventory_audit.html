@@ -63,8 +63,26 @@
         <td class="mono"><a class="highlightable" href="{{ url_for('catalog.item_detail', item_id=row.id) }}">{{ row.part_number or '—' }}</a></td>
         <td class="highlightable">{{ row.type }}</td>
         <td>
-          <div class="location-edit-wrap">
-            <input type="text" class="location-input" data-item-id="{{ row.id }}" value="{{ row.location or '' }}" placeholder="—">
+          <div class="location-edit-wrap location-picker" data-item-id="{{ row.id }}"
+               data-initial-bank="{{ row.location_bank }}" data-initial-shelf="{{ row.location_shelf }}">
+            <select class="location-mode-select">
+              <option value="warehouse" {% if row.location_mode == 'warehouse' %}selected{% endif %}>GM-Down</option>
+              <option value="custom" {% if row.location_mode == 'custom' %}selected{% endif %}>Custom / other</option>
+            </select>
+            <span class="location-warehouse-fields" style="display: {{ 'inline-flex' if row.location_mode == 'warehouse' else 'none' }};">
+              <select class="location-aisle-select">
+                <option value="">Aisle…</option>
+                {% for a in warehouse_aisles %}
+                <option value="{{ a.number }}" data-banks="{{ a.banks | join(',') }}" data-shelves="{{ a.shelves | join(',') }}"
+                        {% if row.location_aisle == a.number %}selected{% endif %}>Aisle {{ a.number }}</option>
+                {% endfor %}
+              </select>
+              <select class="location-bank-select"><option value="">Bank…</option></select>
+              <select class="location-shelf-select"><option value="">Shelf…</option></select>
+            </span>
+            <input type="text" class="location-custom-input" placeholder="e.g. Your dad's house…"
+                   style="display: {{ 'block' if row.location_mode == 'custom' else 'none' }};"
+                   value="{{ row.location_custom }}">
             <span class="location-save-status"></span>
           </div>
         </td>
@@ -164,12 +182,30 @@
     el.appendChild(document.createTextNode(original.slice(pos)));
   }
 
+  // Reads a .location-picker's current on-screen state -- either the
+  // custom text, or (for a warehouse pick) a composed "aisle X bank Y
+  // shelf Z" string once all three are chosen. Shared by search and the
+  // "missing a location" filter so both react live, not just on save.
+  function pickerState(picker) {
+    if (!picker) return { text: '', empty: true };
+    var mode = picker.querySelector('.location-mode-select').value;
+    if (mode === 'custom') {
+      var text = picker.querySelector('.location-custom-input').value.trim();
+      return { text: text.toLowerCase(), empty: !text };
+    }
+    var aisle = picker.querySelector('.location-aisle-select').value;
+    var bank = picker.querySelector('.location-bank-select').value;
+    var shelf = picker.querySelector('.location-shelf-select').value;
+    var filled = !!(aisle && bank && shelf);
+    var text = filled ? ('aisle ' + aisle + ' bank ' + bank + ' shelf ' + shelf) : '';
+    return { text: text, empty: !filled };
+  }
+
   function rowSearchText(row) {
-    // Location lives in an editable input rather than static text, so its
+    // Location lives in an editable picker rather than static text, so its
     // current value (not what was rendered at page load) is folded in here
     // instead of being baked into data-search.
-    var locInput = row.querySelector('.location-input');
-    var loc = locInput ? locInput.value.toLowerCase() : '';
+    var loc = pickerState(row.querySelector('.location-picker')).text;
     return (row.dataset.search || '') + ' ' + loc;
   }
 
@@ -180,8 +216,7 @@
     rows.forEach(function(row) {
       var matchesSearch = !query || rowSearchText(row).indexOf(query) !== -1;
       var matchesUnit = !unitQuery || (row.dataset.units || '').indexOf(unitQuery) !== -1;
-      var locInput = row.querySelector('.location-input');
-      var matchesLocationFilter = !missingLocationOnly || !locInput || !locInput.value.trim();
+      var matchesLocationFilter = !missingLocationOnly || pickerState(row.querySelector('.location-picker')).empty;
       row.hidden = !(matchesSearch && matchesUnit && matchesLocationFilter);
       if (!row.hidden) {
         row.querySelectorAll('.highlightable').forEach(function(el) {
@@ -205,10 +240,13 @@
   searchInput.addEventListener('input', function() { applyFilter(); updateClearButtons(); });
   if (unitInput) unitInput.addEventListener('input', function() { applyFilter(); updateClearButtons(); });
   if (missingLocationToggle) missingLocationToggle.addEventListener('change', applyFilter);
-  // Typing into a Location field can change whether this row still belongs
+  // Changing a Location picker can change whether this row still belongs
   // in the "missing a location" view -- re-filter live, not just on save.
-  document.querySelectorAll('.location-input').forEach(function(input) {
-    input.addEventListener('input', applyFilter);
+  document.querySelectorAll('.location-picker').forEach(function(picker) {
+    picker.querySelectorAll('select, input').forEach(function(field) {
+      field.addEventListener('input', applyFilter);
+      field.addEventListener('change', applyFilter);
+    });
   });
   applyFilter();
   updateClearButtons();
@@ -298,8 +336,108 @@
     });
   }
 
-  bindInlineEdit('.location-input', 'location', 'location');
   bindInlineEdit('.quantity-input', 'quantity-on-hand', 'quantity_on_hand', { liveSave: true });
+
+  // Location picker -- a mode dropdown (warehouse shelf vs. custom text)
+  // plus the warehouse Aisle/Bank/Shelf selects or the custom input,
+  // whichever the mode shows. Saves the whole picker's state in one POST,
+  // same shape _read_item_location() on the server already reads for the
+  // full Edit item form.
+  function bindLocationPicker(picker) {
+    var itemId = picker.dataset.itemId;
+    var modeSelect = picker.querySelector('.location-mode-select');
+    var aisleSelect = picker.querySelector('.location-aisle-select');
+    var bankSelect = picker.querySelector('.location-bank-select');
+    var shelfSelect = picker.querySelector('.location-shelf-select');
+    var warehouseFields = picker.querySelector('.location-warehouse-fields');
+    var customInput = picker.querySelector('.location-custom-input');
+    var status = picker.querySelector('.location-save-status');
+
+    function setStatus(kind) {
+      if (!status) return;
+      status.textContent = kind === 'ok' ? '✓' : kind === 'error' ? '✗' : '';
+      status.className = 'location-save-status' + (kind ? ' ' + kind : '');
+      if (kind === 'ok') {
+        setTimeout(function() {
+          if (status.classList.contains('ok')) status.className = 'location-save-status';
+        }, 1500);
+      }
+    }
+
+    function applyMode() {
+      var mode = modeSelect.value;
+      warehouseFields.style.display = mode === 'warehouse' ? 'inline-flex' : 'none';
+      customInput.style.display = mode === 'custom' ? 'inline-block' : 'none';
+    }
+
+    function populateBanks(preselect) {
+      var opt = aisleSelect.options[aisleSelect.selectedIndex];
+      var banks = (opt && opt.dataset.banks) ? opt.dataset.banks.split(',') : [];
+      bankSelect.innerHTML = '<option value="">Bank…</option>';
+      banks.forEach(function(letter) {
+        var o = document.createElement('option');
+        o.value = letter;
+        o.textContent = 'Bank ' + letter;
+        if (letter === preselect) o.selected = true;
+        bankSelect.appendChild(o);
+      });
+    }
+
+    function populateShelves(preselect) {
+      var opt = aisleSelect.options[aisleSelect.selectedIndex];
+      var shelves = (opt && opt.dataset.shelves) ? opt.dataset.shelves.split(',') : [];
+      shelfSelect.innerHTML = '<option value="">Shelf…</option>';
+      shelves.forEach(function(num) {
+        var o = document.createElement('option');
+        o.value = num;
+        o.textContent = 'Shelf ' + num;
+        if (num === preselect) o.selected = true;
+        shelfSelect.appendChild(o);
+      });
+    }
+
+    function save() {
+      setStatus('saving');
+      var body = new URLSearchParams();
+      body.set('location_mode', modeSelect.value);
+      body.set('location_aisle', aisleSelect.value);
+      body.set('location_bank', bankSelect.value);
+      body.set('location_shelf', shelfSelect.value);
+      body.set('location_custom', customInput.value.trim());
+      fetch('/catalog/items/' + itemId + '/location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      })
+        .then(function(resp) { return resp.json().then(function(data) { return { ok: resp.ok, data: data }; }); })
+        .then(function(result) { setStatus(result.ok && result.data.ok ? 'ok' : 'error'); })
+        .catch(function() { setStatus('error'); });
+    }
+
+    // A warehouse pick only saves once aisle, bank, and shelf are all set --
+    // partial selections are just mid-pick, not a value worth sending yet.
+    function maybeSaveWarehouse() {
+      if (aisleSelect.value && bankSelect.value && shelfSelect.value) save();
+    }
+
+    modeSelect.addEventListener('change', function() { applyMode(); save(); });
+    aisleSelect.addEventListener('change', function() { populateBanks(null); populateShelves(null); maybeSaveWarehouse(); });
+    bankSelect.addEventListener('change', maybeSaveWarehouse);
+    shelfSelect.addEventListener('change', maybeSaveWarehouse);
+    customInput.addEventListener('blur', save);
+    customInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        customInput.blur();
+      }
+    });
+
+    populateBanks(picker.dataset.initialBank);
+    populateShelves(picker.dataset.initialShelf);
+    applyMode();
+  }
+
+  document.querySelectorAll('.location-picker').forEach(bindLocationPicker);
 })();
 </script>
 {% endif %}

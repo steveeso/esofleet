@@ -438,6 +438,7 @@ def _build_parts_list_rows(db):
     items = db.execute(
         """SELECT catalog_items.id, catalog_items.value AS part_number,
                   catalog_items.label, catalog_items.location AS location,
+                  catalog_items.location_code AS location_code,
                   catalog_items.quantity_on_hand AS quantity_on_hand,
                   catalog_items.supplier_stock AS supplier_stock,
                   catalog_items.napa_stock AS napa_stock,
@@ -495,6 +496,7 @@ def _build_parts_list_rows(db):
                 "part_number": item["part_number"] or item["label"],
                 "type": item["type_name"],
                 "location": item["location"],
+                "location_code": item["location_code"],
                 "quantity_on_hand": item["quantity_on_hand"],
                 "supplier_stock": item["supplier_stock"],
                 "napa_stock": item["napa_stock"],
@@ -606,31 +608,36 @@ def parts_list_export_csv():
 def inventory_audit():
     db = get_db()
     rows, sort, direction, all_units = _build_parts_list_rows(db)
+    for row in rows:
+        row.update(_location_picker_defaults(row))
 
     return render_template(
         "catalog/inventory_audit.html",
         rows=rows, sort=sort, dir=direction, brand_columns=PARTS_LIST_BRANDS,
         q=request.args.get("q", ""), unit=request.args.get("unit", ""),
-        all_units=all_units,
+        all_units=all_units, warehouse_aisles=warehouse.aisle_options(),
     )
 
 
 @bp.route("/items/<int:item_id>/location", methods=("POST",))
 @login_required
 def update_item_location(item_id):
-    """Lightweight endpoint for the Inventory Audit page's inline location
-    editor -- just this one column, saved via fetch without a page reload.
-    Free text only (no aisle/bank/shelf picker in this inline editor), so
-    location_code is cleared -- it can no longer be trusted to match once
-    location has been hand-edited here. Use the full Edit item form to
-    reassign a warehouse shelf position."""
+    """Endpoint for the Inventory Audit page's inline location editor --
+    saved via fetch without a page reload. Shares the same warehouse
+    Aisle/Bank/Shelf-or-custom picker (and reader) as the full Edit item
+    form, so a shelf position can be assigned from either screen."""
     db = get_db()
     item = _item_or_404(db, item_id)
-    location = request.form.get("location", "").strip() or None
+    location, location_code, error, _raw = _read_item_location(request.form)
+    if error:
+        return {"ok": False, "error": error}, 400
     _record_location_change(db, item_id, item["location"], location)
-    db.execute("UPDATE catalog_items SET location=?, location_code=NULL WHERE id=?", (location, item_id))
+    db.execute(
+        "UPDATE catalog_items SET location=?, location_code=? WHERE id=?",
+        (location, location_code, item_id),
+    )
     db.commit()
-    return {"ok": True, "location": location}
+    return {"ok": True, "location": location, "location_code": location_code}
 
 
 @bp.route("/items/<int:item_id>/quantity-on-hand", methods=("POST",))
@@ -769,9 +776,10 @@ def _read_item_form(form):
 
 def _location_picker_defaults(item):
     """Derive the Location picker's starting state (mode + individual
-    fields) from a stored DB row, for prefilling the Edit form. Warehouse
-    positions round-trip through location_code; anything else (including
-    legacy freeform text) opens in custom mode with that text intact."""
+    fields) from a stored DB row, for prefilling the picker on the Edit
+    form or the Inventory Audit page's inline editor. Warehouse positions
+    round-trip through location_code; anything else (including legacy
+    freeform text) opens in custom mode with that text intact."""
     parsed = warehouse.parse_code(item["location_code"]) if item["location_code"] else None
     # The picker only edits the default room for now (no room selector in
     # the UI yet) -- a code from some other room still displays fine as
