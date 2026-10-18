@@ -1,6 +1,6 @@
 import os
 from datetime import date, datetime
-from flask import Flask
+from flask import Flask, render_template
 
 from . import db
 
@@ -18,6 +18,16 @@ def create_app(test_config=None):
     os.makedirs(app.instance_path, exist_ok=True)
 
     db.init_app(app)
+
+    # Idempotent (see db.init_db), so the auth tables always exist before
+    # the first request instead of depending on `flask init-db` being run
+    # by hand after an update.
+    with app.app_context():
+        db.init_db()
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template("errors/403.html"), 403
 
     @app.template_filter("days_ago")
     def days_ago(value):

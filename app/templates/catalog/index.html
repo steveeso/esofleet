@@ -8,8 +8,12 @@
     <div class="subtitle">Shared reference specs — link items to equipment from an equipment item's Maintenance Info section</div>
   </div>
   <div class="actions">
+    {% if can('catalog.import') %}
     <a href="{{ url_for('catalog.import_form') }}" class="btn">Import filters</a>
+    {% endif %}
+    {% if can('catalog.edit') %}
     <a href="{{ url_for('catalog.new_category') }}" class="btn btn-primary">+ Add category</a>
+    {% endif %}
   </div>
 </div>
 
@@ -34,14 +38,20 @@
       <span class="acc-meta">{{ cat_items|length }} item{{ '' if cat_items|length == 1 else 's' }}</span>
     </summary>
     <div class="acc-body">
+      {% if can('catalog.edit') or can('catalog.delete') %}
       <div class="acc-category-actions">
+        {% if can('catalog.edit') %}
         <a href="{{ url_for('catalog.new_item', category_id=category['id']) }}" class="btn btn-sm">+ Add item</a>
         <a href="{{ url_for('catalog.edit_category', category_id=category['id']) }}" class="btn btn-sm">Rename</a>
+        {% endif %}
+        {% if can('catalog.delete') %}
         <form method="post" action="{{ url_for('catalog.delete_category', category_id=category['id']) }}"
               onsubmit="return confirm('Delete this category and everything in it? Any equipment linked to its items will lose that link too.');">
           <button type="submit" class="btn btn-sm btn-danger">Delete category</button>
         </form>
+        {% endif %}
       </div>
+      {% endif %}
 
       {% if cat_items %}
       {% for catalog_item in cat_items %}
@@ -75,10 +85,12 @@
                   <span class="mono">{{ alt['value'] }}</span>
                   {% if alt['notes'] %}<div class="alt-notes">{{ alt['notes'] }}</div>{% endif %}
                 </div>
+                {% if can('catalog.edit') %}
                 <form method="post" action="{{ url_for('catalog.delete_alternate', alternate_id=alt['id']) }}"
                       onsubmit="return confirm('Remove this alternate?');">
                   <button type="submit" class="btn btn-sm btn-danger">Remove</button>
                 </form>
+                {% endif %}
               </li>
               {% endfor %}
             </ul>
@@ -86,11 +98,13 @@
             <div class="alt-notes">No alternates recorded yet.</div>
             {% endif %}
 
+            {% if can('catalog.edit') %}
             <form method="post" action="{{ url_for('catalog.new_alternate', item_id=catalog_item['id']) }}" class="alt-add-form">
               <input type="text" name="value" placeholder="Alternate part number / spec" required>
               <input type="text" name="notes" placeholder="Brand or notes (optional)">
               <button type="submit" class="btn btn-sm btn-primary">Add</button>
             </form>
+            {% endif %}
           </div>
 
           {% set used_by = equipment_by_item.get(catalog_item['id'], []) %}

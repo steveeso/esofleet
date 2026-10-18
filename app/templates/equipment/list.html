@@ -13,10 +13,16 @@
     <div class="subtitle">{{ items|length }} item{{ '' if items|length == 1 else 's' }}</div>
   </div>
   <div class="actions">
+    {% if can('equipment.edit') %}
     <a href="{{ url_for('equipment.decode_vins_batch_review') }}" class="btn">Decode all VINs</a>
+    {% endif %}
     <a href="{{ url_for('equipment.export_csv', q=q, status=status, sort=sort, dir=dir) }}" class="btn">Export CSV</a>
+    {% if can('equipment.import') %}
     <a href="{{ url_for('equipment.import_form') }}" class="btn">Import CSV</a>
+    {% endif %}
+    {% if can('equipment.edit') %}
     <a href="{{ url_for('equipment.new') }}" class="btn btn-primary">+ Add equipment</a>
+    {% endif %}
   </div>
 </div>
 

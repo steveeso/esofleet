@@ -11,6 +11,29 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- users.role names a row here (checked in the app, not with a foreign key,
+-- so the existing users table never needs rebuilding).
+CREATE TABLE IF NOT EXISTS roles (
+    name TEXT PRIMARY KEY,
+    description TEXT,
+    is_builtin INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    role TEXT NOT NULL REFERENCES roles(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    permission TEXT NOT NULL,
+    PRIMARY KEY (role, permission)
+);
+
+-- Per-user exceptions to their role: allowed=1 grants, allowed=0 denies.
+-- No row means "inherit from the role".
+CREATE TABLE IF NOT EXISTS user_permissions (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    permission TEXT NOT NULL,
+    allowed INTEGER NOT NULL,
+    PRIMARY KEY (user_id, permission)
+);
+
 CREATE TABLE IF NOT EXISTS equipment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     unit_number TEXT UNIQUE NOT NULL,

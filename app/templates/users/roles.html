@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Roles · Users{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Roles &amp; permissions</h1>
+    <div class="subtitle">What each role is allowed to do. Individual users can still be given exceptions on their own page.</div>
+  </div>
+</div>
+
+{% set active = 'roles' %}
+{% include "users/_tabs.html" %}
+
+<div class="panel" style="padding: 20px; margin-bottom: 20px;">
+    <form method="post" action="{{ url_for('users.save_roles') }}">
+      <div style="overflow-x: auto;">
+        <table class="perm-table perm-matrix">
+          <thead>
+            <tr>
+              <th>Permission</th>
+              {% for r in roles %}
+              <th class="perm-check">{{ r['name']|capitalize }}<div class="field-hint">{{ r['user_count'] }} user{{ '' if r['user_count'] == 1 else 's' }}</div></th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for group, items in groups %}
+            <tr class="perm-group"><td colspan="{{ roles|length + 1 }}">{{ group }}</td></tr>
+            {% for key, label, desc in items %}
+            <tr>
+              <td>{{ label }}{% if desc %}<div class="field-hint">{{ desc }}</div>{% endif %}</td>
+              {% for r in roles %}
+              <td class="perm-check">
+                {% if r['name'] == admin_role %}
+                <input type="checkbox" checked disabled title="Admins always have every permission">
+                {% else %}
+                <input type="checkbox" name="rp__{{ r['name'] }}__{{ key }}" {{ 'checked' if key in granted[r['name']] }}>
+                {% endif %}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top: 16px;"><button type="submit" class="btn btn-primary">Save role permissions</button></div>
+    </form>
+</div>
+
+<div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start;">
+    <div class="panel" style="padding: 20px;">
+      <h2 class="section-title">Add a role</h2>
+      <form method="post" action="{{ url_for('users.new_role') }}">
+        <div class="field" style="margin-bottom: 14px;">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required maxlength="30" placeholder="e.g. mechanic">
+        </div>
+        <div class="field" style="margin-bottom: 14px;">
+          <label for="description">Description (optional)</label>
+          <input type="text" id="description" name="description">
+        </div>
+        <div class="field" style="margin-bottom: 16px;">
+          <label for="copy_from">Start from</label>
+          <select id="copy_from" name="copy_from">
+            <option value="">Nothing ticked</option>
+            {% for r in roles %}{% if r['name'] != admin_role %}
+            <option value="{{ r['name'] }}">Copy of {{ r['name'] }}</option>
+            {% endif %}{% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Add role</button>
+      </form>
+    </div>
+
+    <div class="panel" style="padding: 20px;">
+      <h2 class="section-title">Roles</h2>
+      {% for r in roles %}
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--color-border);">
+        <div>
+          <strong>{{ r['name']|capitalize }}</strong>{% if r['is_builtin'] %} <span class="field-hint">built-in</span>{% endif %}
+          {% if r['description'] %}<div class="field-hint">{{ r['description'] }}</div>{% endif %}
+        </div>
+        {% if not r['is_builtin'] %}
+        <form method="post" action="{{ url_for('users.delete_role', role_name=r['name']) }}" onsubmit="return confirm('Delete role {{ r['name']|e }}?');">
+          <button type="submit" class="btn btn-danger btn-sm" {% if r['user_count'] %}disabled title="Reassign its users first"{% endif %}>Delete</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+</div>
+{% endblock %}

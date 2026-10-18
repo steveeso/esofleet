@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ user['username'] }} · Users{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ user['username'] }}</h1>
+    <div class="subtitle"><a href="{{ url_for('users.list_users') }}">&larr; All users</a> · added {{ user['created_at'] }}</div>
+  </div>
+</div>
+
+<div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; margin-bottom: 20px;">
+  <div class="panel" style="padding: 20px;">
+    <h2 class="section-title">Role</h2>
+    <form method="post" action="{{ url_for('users.set_role', user_id=user['id']) }}">
+      <div class="field" style="margin-bottom: 14px;">
+        <select name="role">
+          {% for r in roles %}
+          <option value="{{ r }}" {{ 'selected' if r == user['role'] }}>{{ r|capitalize }}</option>
+          {% endfor %}
+        </select>
+        <div class="hint"><a href="{{ url_for('users.list_roles') }}">Edit what each role can do</a></div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Change role</button>
+    </form>
+  </div>
+
+  <div class="panel" style="padding: 20px;">
+    <h2 class="section-title">Reset password</h2>
+    <form method="post" action="{{ url_for('users.set_password', user_id=user['id']) }}">
+      <div class="field" style="margin-bottom: 14px;">
+        <label for="password">New password</label>
+        <input type="password" id="password" name="password" required autocomplete="new-password">
+      </div>
+      <div class="field" style="margin-bottom: 16px;">
+        <label for="confirm">Confirm</label>
+        <input type="password" id="confirm" name="confirm" required autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn" style="width: 100%; justify-content: center;">Set password</button>
+    </form>
+  </div>
+
+  {% if user['id'] != g.user['id'] %}
+  <div class="panel" style="padding: 20px;">
+    <h2 class="section-title">Remove user</h2>
+    <form method="post" action="{{ url_for('users.delete', user_id=user['id']) }}" onsubmit="return confirm('Remove user {{ user['username']|e }}?');">
+      <button type="submit" class="btn btn-danger" style="width: 100%; justify-content: center;">Remove {{ user['username'] }}</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<div class="panel" style="padding: 20px;">
+  <h2 class="section-title">Permissions</h2>
+  {% if is_admin_role %}
+  <p class="field-hint">Admins always have every permission, and can manage users and roles. Change this user's role to restrict them.</p>
+  {% else %}
+  <p class="field-hint">Starts from the <strong>{{ user['role'] }}</strong> role. Pick <em>Allow</em> or <em>Deny</em> to override it for just this user.</p>
+  <form method="post" action="{{ url_for('users.set_permissions', user_id=user['id']) }}">
+    <div style="overflow-x: auto;">
+      <table class="perm-table">
+        <thead>
+          <tr><th>Permission</th><th>From role</th><th>This user</th><th>Result</th></tr>
+        </thead>
+        <tbody>
+          {% for group, items in groups %}
+          <tr class="perm-group"><td colspan="4">{{ group }}</td></tr>
+          {% for key, label, desc in items %}
+          {% set override = overrides.get(key) %}
+          {% set current = 'inherit' if override is none else ('allow' if override else 'deny') %}
+          <tr>
+            <td>{{ label }}{% if desc %}<div class="field-hint">{{ desc }}</div>{% endif %}</td>
+            <td>{{ 'Yes' if key in role_perms else '—' }}</td>
+            <td>
+              <select name="perm__{{ key }}">
+                <option value="inherit" {{ 'selected' if current == 'inherit' }}>Use role</option>
+                <option value="allow" {{ 'selected' if current == 'allow' }}>Allow</option>
+                <option value="deny" {{ 'selected' if current == 'deny' }}>Deny</option>
+              </select>
+            </td>
+            <td><span class="status {{ 'active' if key in effective else 'overdue' }}"><span class="dot"></span>{{ 'Allowed' if key in effective else 'Blocked' }}</span></td>
+          </tr>
+          {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top: 16px;"><button type="submit" class="btn btn-primary">Save permissions</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

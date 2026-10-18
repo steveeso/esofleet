@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Not allowed{% endblock %}
+
+{% block content %}
+<div class="empty-state">
+  <h3>You don't have permission to do that</h3>
+  <div>Ask an admin if you need access.</div>
+  <p style="margin-top: 16px;"><a href="{{ url_for('dashboard.index') }}" class="btn">Back to the dashboard</a></p>
+</div>
+{% endblock %}

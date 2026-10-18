@@ -58,6 +58,7 @@
       {% set unit_numbers = row.units|map(attribute='unit_number')|list %}
       {% set row_search = ([row.part_number or '', row.type or ''] + brand_values + unit_numbers)|join(' ')|lower %}
       {% set row_units = unit_numbers|join('|')|lower %}
+      {% set ro = '' if can('inventory.edit') else 'disabled' %}
       <tr data-search="{{ row_search }}" data-units="{{ row_units }}">
         <td class="parts-flag-col">{% if row.flagged %}<span class="spec-flag" title="Has a spec flagged for review">🚩</span>{% endif %}</td>
         <td class="mono"><a class="highlightable" href="{{ url_for('catalog.item_detail', item_id=row.id) }}">{{ row.part_number or '—' }}</a></td>
@@ -65,22 +66,22 @@
         <td>
           <div class="location-edit-wrap location-picker" data-item-id="{{ row.id }}"
                data-initial-bank="{{ row.location_bank }}" data-initial-shelf="{{ row.location_shelf }}">
-            <select class="location-mode-select">
+            <select class="location-mode-select" {{ ro }}>
               <option value="warehouse" {% if row.location_mode == 'warehouse' %}selected{% endif %}>GM-Down</option>
               <option value="custom" {% if row.location_mode == 'custom' %}selected{% endif %}>Custom / other</option>
             </select>
             <span class="location-warehouse-fields" style="display: {{ 'inline-flex' if row.location_mode == 'warehouse' else 'none' }};">
-              <select class="location-aisle-select">
+              <select class="location-aisle-select" {{ ro }}>
                 <option value="">Aisle…</option>
                 {% for a in warehouse_aisles %}
                 <option value="{{ a.number }}" data-banks="{{ a.banks | join(',') }}" data-shelves="{{ a.shelves | join(',') }}"
                         {% if row.location_aisle == a.number %}selected{% endif %}>Aisle {{ a.number }}</option>
                 {% endfor %}
               </select>
-              <select class="location-bank-select"><option value="">Bank…</option></select>
-              <select class="location-shelf-select"><option value="">Shelf…</option></select>
+              <select class="location-bank-select" {{ ro }}><option value="">Bank…</option></select>
+              <select class="location-shelf-select" {{ ro }}><option value="">Shelf…</option></select>
             </span>
-            <input type="text" class="location-custom-input" placeholder="e.g. Your dad's house…"
+            <input type="text" class="location-custom-input" {{ ro }} placeholder="e.g. Your dad's house…"
                    style="display: {{ 'block' if row.location_mode == 'custom' else 'none' }};"
                    value="{{ row.location_custom }}">
             <span class="location-save-status"></span>
@@ -88,7 +89,7 @@
         </td>
         <td>
           <div class="location-edit-wrap">
-            <input type="number" min="0" step="1" class="quantity-input" data-item-id="{{ row.id }}" value="{{ row.quantity_on_hand if row.quantity_on_hand is not none else '' }}" placeholder="—">
+            <input type="number" min="0" step="1" class="quantity-input" {{ ro }} data-item-id="{{ row.id }}" value="{{ row.quantity_on_hand if row.quantity_on_hand is not none else '' }}" placeholder="—">
             <span class="location-save-status"></span>
           </div>
         </td>

@@ -1,7 +1,7 @@
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
 from ..db import get_db
-from .auth import login_required
+from .auth import login_required, permission_required
 from .equipment import record_meter_reading
 
 bp = Blueprint("maintenance", __name__, url_prefix="/equipment/<int:equipment_id>/maintenance")
@@ -28,7 +28,7 @@ def _read_form(form):
 
 
 @bp.route("/new", methods=("GET", "POST"))
-@login_required
+@permission_required("maintenance.edit")
 def new(equipment_id):
     db = get_db()
     item = _equipment_or_404(db, equipment_id)
@@ -67,7 +67,7 @@ def new(equipment_id):
 
 
 @bp.route("/<int:record_id>/edit", methods=("GET", "POST"))
-@login_required
+@permission_required("maintenance.edit")
 def edit(equipment_id, record_id):
     db = get_db()
     item = _equipment_or_404(db, equipment_id)
@@ -113,7 +113,7 @@ def edit(equipment_id, record_id):
 
 
 @bp.route("/<int:record_id>/delete", methods=("POST",))
-@login_required
+@permission_required("maintenance.delete")
 def delete(equipment_id, record_id):
     db = get_db()
     _equipment_or_404(db, equipment_id)

@@ -18,7 +18,9 @@
     <div class="subtitle">Equipment overview</div>
   </div>
   <div class="actions">
+    {% if can('equipment.edit') %}
     <a href="{{ url_for('equipment.new') }}" class="btn btn-primary">+ Add equipment</a>
+    {% endif %}
   </div>
 </div>
 

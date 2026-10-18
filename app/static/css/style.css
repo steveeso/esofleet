@@ -793,3 +793,19 @@ details[open] > summary .acc-summary-main::before { transform: rotate(90deg); }
   .col-toggle { display: flex; }
   .table-scroll:not(.show-all-columns) .col-optional { display: none; }
 }
+
+/* Users -- permission tables */
+.perm-table th, .perm-table td { padding: 9px 12px; vertical-align: middle; }
+.perm-table .perm-group td {
+  background: var(--color-bg);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+.perm-table .perm-check { text-align: center; white-space: nowrap; }
+.perm-table select { min-width: 110px; padding: 5px 8px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-panel); font: inherit; }
+.perm-table .field-hint { white-space: normal; }
+.perm-table td:first-child .field-hint { max-width: 380px; }
+.perm-matrix .perm-check { width: 96px; }

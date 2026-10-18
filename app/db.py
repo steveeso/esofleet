@@ -4,6 +4,8 @@ from datetime import datetime, date
 import click
 from flask import current_app, g
 
+from . import permissions
+
 
 def get_db():
     if "db" not in g:
@@ -61,6 +63,7 @@ def _migrate(db):
 
     _backfill_enabled_fields(db)
     _remap_equipment_statuses(db)
+    _seed_roles(db)
     _ensure_column(db, "equipment_catalog_items", "quantity", "REAL")
     _ensure_column(db, "equipment_info_items", "quantity", "REAL")
     _ensure_column(db, "equipment_catalog_items", "quantity_unit", "TEXT")
@@ -132,6 +135,26 @@ def _remap_equipment_statuses(db):
         return
     db.execute("UPDATE equipment SET status = 'repair_required' WHERE status = 'in_shop'")
     db.execute("UPDATE equipment SET status = 'out_of_service' WHERE status = 'retired'")
+    _mark_migration_applied(db, name)
+
+
+def _seed_roles(db):
+    """One-time only: create the built-in roles and their default
+    permissions. Existing users keep their admin/editor role; "editor" gets
+    every permission so nothing changes for them until an admin edits it."""
+    name = "0003_seed_roles"
+    if _migration_applied(db, name):
+        return
+    for role, (description, perms) in permissions.BUILTIN_ROLES.items():
+        db.execute(
+            "INSERT OR IGNORE INTO roles (name, description, is_builtin) VALUES (?, ?, 1)",
+            (role, description),
+        )
+        for perm in perms:
+            db.execute(
+                "INSERT OR IGNORE INTO role_permissions (role, permission) VALUES (?, ?)",
+                (role, perm),
+            )
     _mark_migration_applied(db, name)
 
 

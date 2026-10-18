@@ -9,7 +9,7 @@ from flask import Blueprint, Response, abort, flash, redirect, render_template, 
 
 from ..db import get_db
 from ..vpic import decode_vin, decode_vins_batch, is_valid_vin
-from .auth import login_required
+from .auth import login_required, permission_required
 from .catalog import get_linked_tree
 
 bp = Blueprint("equipment", __name__, url_prefix="/equipment")
@@ -263,7 +263,7 @@ def _decode_fields_for_item(item, decoded):
 
 
 @bp.route("/<int:equipment_id>/decode-vin")
-@login_required
+@permission_required("equipment.edit")
 def decode_vin_review(equipment_id):
     item = _equipment_or_404(equipment_id)
     vin = (item["serial_number"] or "").strip()
@@ -302,7 +302,7 @@ def decode_vin_review(equipment_id):
 
 
 @bp.route("/decode-vins")
-@login_required
+@permission_required("equipment.edit")
 def decode_vins_batch_review():
     db = get_db()
     items = db.execute("SELECT * FROM equipment ORDER BY unit_number").fetchall()
@@ -373,7 +373,7 @@ def decode_vins_batch_review():
 
 
 @bp.route("/decode-vin/confirm", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def decode_vin_confirm():
     try:
         units = json.loads(base64.b64decode(request.form.get("payload", "")).decode("utf-8"))
@@ -600,7 +600,7 @@ def _parse_import_rows(csv_text, db):
 
 
 @bp.route("/import")
-@login_required
+@permission_required("equipment.import")
 def import_form():
     return render_template("equipment/import.html", equipment_types=EQUIPMENT_TYPES)
 
@@ -624,7 +624,7 @@ def import_template():
 
 
 @bp.route("/import", methods=("POST",))
-@login_required
+@permission_required("equipment.import")
 def import_preview():
     file = request.files.get("csv_file")
     if not file or not file.filename:
@@ -649,7 +649,7 @@ def import_preview():
 
 
 @bp.route("/import/confirm", methods=("POST",))
-@login_required
+@permission_required("equipment.import")
 def import_confirm():
     csv_text = request.form.get("csv_text", "")
     db = get_db()
@@ -853,7 +853,7 @@ def _read_equipment_form(form):
 
 
 @bp.route("/new", methods=("GET", "POST"))
-@login_required
+@permission_required("equipment.edit")
 def new():
     if request.method == "POST":
         data = _read_equipment_form(request.form)
@@ -897,7 +897,7 @@ def new():
 
 
 @bp.route("/<int:equipment_id>/edit", methods=("GET", "POST"))
-@login_required
+@permission_required("equipment.edit")
 def edit(equipment_id):
     item = _equipment_or_404(equipment_id)
     db = get_db()
@@ -947,7 +947,7 @@ def edit(equipment_id):
 
 
 @bp.route("/<int:equipment_id>/delete", methods=("POST",))
-@login_required
+@permission_required("equipment.delete")
 def delete(equipment_id):
     item = _equipment_or_404(equipment_id)
     db = get_db()
@@ -958,7 +958,7 @@ def delete(equipment_id):
 
 
 @bp.route("/<int:equipment_id>/fields/<int:field_id>/edit", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def edit_field(equipment_id, field_id):
     _equipment_or_404(equipment_id)
     db = get_db()
@@ -979,7 +979,7 @@ def edit_field(equipment_id, field_id):
 
 
 @bp.route("/<int:equipment_id>/fields/<int:field_id>/delete", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def delete_field(equipment_id, field_id):
     _equipment_or_404(equipment_id)
     db = get_db()
@@ -993,7 +993,7 @@ def delete_field(equipment_id, field_id):
 
 
 @bp.route("/<int:equipment_id>/fields/add", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def add_field(equipment_id):
     """One combined 'add a field' action: either turns on one of the known
     optional fields, or creates a new custom field — so both live behind a
@@ -1031,7 +1031,7 @@ def add_field(equipment_id):
 
 
 @bp.route("/<int:equipment_id>/optional-fields/<field_name>/edit", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def edit_optional_field(equipment_id, field_name):
     _equipment_or_404(equipment_id)
     if field_name not in OPTIONAL_FIELDS:
@@ -1060,7 +1060,7 @@ def edit_optional_field(equipment_id, field_name):
 
 
 @bp.route("/<int:equipment_id>/optional-fields/<field_name>/remove", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def remove_optional_field(equipment_id, field_name):
     _equipment_or_404(equipment_id)
     if field_name not in OPTIONAL_FIELDS:
@@ -1077,7 +1077,7 @@ def remove_optional_field(equipment_id, field_name):
 
 
 @bp.route("/<int:equipment_id>/meter/new", methods=("GET", "POST"))
-@login_required
+@permission_required("equipment.edit")
 def new_meter_reading(equipment_id):
     item = _equipment_or_404(equipment_id)
 
@@ -1107,7 +1107,7 @@ def new_meter_reading(equipment_id):
 
 
 @bp.route("/<int:equipment_id>/meter/<int:reading_id>/delete", methods=("POST",))
-@login_required
+@permission_required("equipment.delete")
 def delete_meter_reading(equipment_id, reading_id):
     _equipment_or_404(equipment_id)
     db = get_db()
@@ -1136,7 +1136,7 @@ def _parse_quantity_unit(form):
 
 
 @bp.route("/<int:equipment_id>/info/link", methods=("GET", "POST"))
-@login_required
+@permission_required("equipment.edit")
 def link_catalog_item(equipment_id):
     item = _equipment_or_404(equipment_id)
     db = get_db()
@@ -1225,7 +1225,7 @@ def link_catalog_item(equipment_id):
 
 
 @bp.route("/<int:equipment_id>/info/links/<int:catalog_item_id>/quantity", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def set_link_quantity(equipment_id, catalog_item_id):
     _equipment_or_404(equipment_id)
     db = get_db()
@@ -1245,7 +1245,7 @@ def set_link_quantity(equipment_id, catalog_item_id):
 
 
 @bp.route("/<int:equipment_id>/info/unlink/<int:catalog_item_id>", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def unlink_catalog_item(equipment_id, catalog_item_id):
     _equipment_or_404(equipment_id)
     db = get_db()
@@ -1259,7 +1259,7 @@ def unlink_catalog_item(equipment_id, catalog_item_id):
 
 
 @bp.route("/<int:equipment_id>/info-items/new", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def new_info_item(equipment_id):
     _equipment_or_404(equipment_id)
     db = get_db()
@@ -1283,7 +1283,7 @@ def new_info_item(equipment_id):
 
 
 @bp.route("/<int:equipment_id>/info-items/<int:item_id>/edit", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def edit_info_item(equipment_id, item_id):
     _equipment_or_404(equipment_id)
     db = get_db()
@@ -1307,7 +1307,7 @@ def edit_info_item(equipment_id, item_id):
 
 
 @bp.route("/<int:equipment_id>/info-items/<int:item_id>/delete", methods=("POST",))
-@login_required
+@permission_required("equipment.edit")
 def delete_info_item(equipment_id, item_id):
     _equipment_or_404(equipment_id)
     db = get_db()

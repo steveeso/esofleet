@@ -194,7 +194,12 @@ Once you're logged in as an admin, you can add further users from the
   also feeds its meter reading into the equipment's meter history. The
   next-due fields are captured but not currently used to flag anything —
   see the note above about scheduled maintenance being on hold.
-- **Users (admin only)** — add/remove logins, set role (admin/editor).
+- **Users (admin only)** — add/remove logins, reset passwords, and set each
+  user's role. A user's role decides what they can do (add/edit/delete/import
+  equipment, parts, maintenance, and stock counts), and an admin can tick those
+  permissions per role on the **Roles & permissions** tab, add custom roles, or
+  give one user an exception (allow or deny) on their own page. Everyone signed
+  in can view everything; the built-in `admin` role always has full access.
 
 ## 7. Notes on this being a proof of concept
 
@@ -222,8 +227,9 @@ Once you're logged in as an admin, you can add further users from the
   change needs to add a column to an existing table, that'll need its own
   `ALTER TABLE` step there too — `CREATE TABLE IF NOT EXISTS` alone won't
   add columns to a table that already exists.
-- **No password reset flow, no CSV import, no email/SMS alerts yet** — these
-  are natural next steps once the core shape feels right.
+- **No self-service password change and no email/SMS alerts yet** — admins can
+  reset any user's password from the Users page, but users can't change their
+  own. These are natural next steps once the core shape feels right.
 
 ## 8. Project structure
 

@@ -170,11 +170,37 @@ decision is made that a future reader would otherwise have to guess at.
   themselves as pure code-editing clients (`git pull`/`git push`) rather
   than running their own live copy with its own database.
 
+## Users, roles, and permissions
+
+- A user's effective permissions are their role's permissions with any
+  per-user override applied on top (explicit allow or deny wins). The fixed
+  list of permissions lives in `permissions.py`; routes are protected with
+  `@permission_required("equipment.edit")` (see `routers/auth.py`), and
+  templates hide the matching buttons with `can('equipment.edit')`. The
+  server-side check is the real protection — hiding buttons is just polish.
+- Viewing is not a permission: every signed-in user can read everything.
+  Only the mutating routes are gated.
+- Managing users and roles is admin-only and is deliberately **not** a
+  grantable permission, and the `admin` role is locked to "everything". That
+  way nobody can configure themselves or the last admin out of access. The
+  last remaining admin can't be demoted or deleted, and you can't delete
+  your own account.
+- `editor` was seeded with every permission, so existing editors behaved
+  exactly as before this system existed. `viewer` (read-only) is also
+  built in; admins can add their own roles. A role can't be deleted while
+  users still have it.
+- Roles and overrides live in `roles`, `role_permissions` and
+  `user_permissions` (additive, in `schema.sql`; seeded once by the
+  `0003_seed_roles` migration). `users.role` names a role but isn't a
+  foreign key, to avoid rebuilding the existing users table.
+- The app now runs `init_db()` at startup (it's idempotent) so a code update
+  can never leave the auth tables missing; before this, new tables only
+  appeared after running `flask init-db` by hand.
+
 ## Known gaps (not yet built, on purpose)
 
-- No password change or reset flow for any user — the only way to fix a
-  bad password today is editing the database directly. Wanted, not yet
-  built (see git history / ask for context if it's still missing).
+- Admins can reset any user's password, but there's no self-service password
+  change for users themselves.
 - Password *recovery* (forgot-password via email) is deliberately out of
   scope for now — would require setting up outbound email, which hasn't
   been wanted yet. Don't build this without it being explicitly asked for.

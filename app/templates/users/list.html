@@ -9,13 +9,16 @@
   </div>
 </div>
 
-<div class="detail-grid" style="grid-template-columns: 1fr 320px;">
-  <div class="panel">
+{% set active = 'users' %}
+{% include "users/_tabs.html" %}
+
+<div class="panel" style="margin-bottom: 20px; overflow-x: auto;">
     <table>
       <thead>
         <tr>
           <th>Username</th>
           <th>Role</th>
+          <th>Custom permissions</th>
           <th>Added</th>
           <th></th>
         </tr>
@@ -23,23 +26,18 @@
       <tbody>
         {% for u in users %}
         <tr>
-          <td>{{ u['username'] }}</td>
+          <td><a href="{{ url_for('users.detail', user_id=u['id']) }}">{{ u['username'] }}</a>{% if u['id'] == g.user['id'] %} <span class="field-hint">(you)</span>{% endif %}</td>
           <td><span class="status {{ 'active' if u['role'] == 'admin' else 'neutral' }}"><span class="dot"></span>{{ u['role']|capitalize }}</span></td>
-          <td class="mono">{{ u['created_at'] }}</td>
-          <td>
-            {% if u['id'] != g.user['id'] %}
-            <form method="post" action="{{ url_for('users.delete', user_id=u['id']) }}" onsubmit="return confirm('Remove user {{ u['username'] }}?');">
-              <button type="submit" class="btn btn-danger btn-sm">Remove</button>
-            </form>
-            {% endif %}
-          </td>
+          <td>{% if u['role'] == 'admin' %}<span class="field-hint">Always full access</span>{% elif u['override_count'] %}{{ u['override_count'] }} override{{ '' if u['override_count'] == 1 else 's' }}{% else %}<span class="field-hint">None</span>{% endif %}</td>
+          <td class="mono">{{ u['created_at'][:10] }}</td>
+          <td><a href="{{ url_for('users.detail', user_id=u['id']) }}" class="btn btn-sm">Manage</a></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-  </div>
+</div>
 
-  <div class="panel" style="padding: 20px;">
+<div class="panel" style="padding: 20px; max-width: 420px;">
     <h2 class="section-title">Add a user</h2>
     <form method="post" action="{{ url_for('users.new') }}">
       <div class="field" style="margin-bottom: 14px;">
@@ -54,12 +52,11 @@
         <label for="role">Role</label>
         <select id="role" name="role">
           {% for r in roles %}
-          <option value="{{ r }}">{{ r|capitalize }}</option>
+          <option value="{{ r }}" {{ 'selected' if r == 'editor' }}>{{ r|capitalize }}</option>
           {% endfor %}
         </select>
       </div>
       <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Add user</button>
     </form>
-  </div>
 </div>
 {% endblock %}

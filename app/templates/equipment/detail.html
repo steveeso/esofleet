@@ -10,11 +10,15 @@
     <div class="subtitle"><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|title }}</span></div>
   </div>
   <div class="actions">
-    {% if 'serial_number' in enabled_fields %}
+    {% if 'serial_number' in enabled_fields and can('equipment.edit') %}
     <a href="{{ url_for('equipment.decode_vin_review', equipment_id=item['id']) }}" class="btn">Decode VIN</a>
     {% endif %}
+    {% if can('equipment.edit') %}
     <a href="{{ url_for('equipment.edit', equipment_id=item['id']) }}" class="btn">Edit equipment</a>
+    {% endif %}
+    {% if can('maintenance.edit') %}
     <a href="{{ url_for('maintenance.new', equipment_id=item['id']) }}" class="btn btn-primary">+ Log maintenance</a>
+    {% endif %}
   </div>
 </div>
 
@@ -69,12 +73,14 @@
           <div class="full"><div class="info-label">Notes</div><div class="info-value">{{ item['notes'] or '—' }}</div></div>
           {% endif %}
         </div>
+        {% if can('equipment.delete') %}
         <div style="padding: 0 20px 20px 20px;">
           <form method="post" action="{{ url_for('equipment.delete', equipment_id=item['id']) }}"
                 onsubmit="return confirm('Remove {{ item['unit_number'] }} and all its maintenance history? This cannot be undone.');">
             <button type="submit" class="btn btn-danger btn-sm">Remove equipment</button>
           </form>
         </div>
+        {% endif %}
       </div>
     </section>
 
@@ -83,7 +89,9 @@
         <h2 class="section-title">Maintenance Info</h2>
         <div class="actions">
           <a href="{{ url_for('catalog.index') }}" class="btn btn-sm">Browse catalog</a>
+          {% if can('equipment.edit') %}
           <a href="{{ url_for('equipment.link_catalog_item', equipment_id=item['id']) }}" class="btn btn-sm btn-primary">+ Link item</a>
+          {% endif %}
         </div>
       </div>
       <div class="panel">
@@ -113,12 +121,14 @@
                 {% if catalog_item['notes'] %}<div class="acc-item-notes">{{ catalog_item['notes'] }}</div>{% endif %}
                 {% if catalog_item['location'] %}<div class="item-location"><strong>Location:</strong> {{ catalog_item['location'] }}</div>{% endif %}
 
+                {% if can('equipment.edit') %}
                 <form method="post" action="{{ url_for('equipment.set_link_quantity', equipment_id=item['id'], catalog_item_id=catalog_item['id']) }}" class="custom-field-edit-form qty-edit-form">
                   <label class="custom-field-label">Quantity on this unit</label>
                   <input type="number" name="quantity" min="0" step="any" placeholder="e.g. 2 or 5.7" value="{{ catalog_item['link_quantity'] if catalog_item['link_quantity'] is not none else '' }}" class="qty-input">
                   <input type="text" name="quantity_unit" placeholder="Unit" value="{{ catalog_item['link_quantity_unit'] or '' }}" class="qty-unit-input">
                   <button type="submit" class="btn btn-sm">Save</button>
                 </form>
+                {% endif %}
 
                 <div class="alt-section">
                   <h4>Alternate part numbers / equivalents</h4>
@@ -130,11 +140,13 @@
                         <span class="mono">{{ alt['value'] }}</span>
                         {% if alt['notes'] %}<div class="alt-notes">{{ alt['notes'] }}</div>{% endif %}
                       </div>
+                      {% if can('catalog.edit') %}
                       <form method="post" action="{{ url_for('catalog.delete_alternate', alternate_id=alt['id']) }}"
                             onsubmit="return confirm('Remove this alternate? This affects every piece of equipment linked to this item.');">
                         <input type="hidden" name="next" value="{{ url_for('equipment.detail', equipment_id=item['id'], open_item=catalog_item['id'], _anchor='item-' ~ catalog_item['id']) }}">
                         <button type="submit" class="btn btn-sm btn-danger">Remove</button>
                       </form>
+                      {% endif %}
                     </li>
                     {% endfor %}
                   </ul>
@@ -142,6 +154,7 @@
                   <div class="alt-notes">No alternates recorded yet.</div>
                   {% endif %}
 
+                  {% if can('catalog.edit') %}
                   <form method="post" action="{{ url_for('catalog.new_alternate', item_id=catalog_item['id']) }}" class="alt-add-form">
                     <input type="hidden" name="next" value="{{ url_for('equipment.detail', equipment_id=item['id'], open_item=catalog_item['id'], _anchor='item-' ~ catalog_item['id']) }}">
                     <input type="text" name="value" placeholder="Alternate part number / spec" required>
@@ -149,6 +162,7 @@
                     <button type="submit" class="btn btn-sm btn-primary">Add</button>
                   </form>
                   <div class="hint" style="margin-top: 6px;">This item is shared — edits and alternates apply everywhere it's linked.</div>
+                  {% endif %}
                 </div>
 
                 {% set also_used_by = other_equipment_by_item.get(catalog_item['id'], []) %}
@@ -160,11 +174,15 @@
                 {% endif %}
 
                 <div class="acc-item-actions">
+                  {% if can('catalog.edit') %}
                   <a href="{{ url_for('catalog.edit_item', item_id=catalog_item['id'], next=url_for('equipment.detail', equipment_id=item['id'], open_item=catalog_item['id'], _anchor='item-' ~ catalog_item['id'])) }}" class="btn btn-sm">Edit in catalog</a>
+                  {% endif %}
+                  {% if can('equipment.edit') %}
                   <form method="post" action="{{ url_for('equipment.unlink_catalog_item', equipment_id=item['id'], catalog_item_id=catalog_item['id']) }}"
                         onsubmit="return confirm('Unlink this item from {{ item['unit_number'] }}? It stays in the catalog for other equipment.');">
                     <button type="submit" class="btn btn-sm btn-danger">Unlink</button>
                   </form>
+                  {% endif %}
                 </div>
               </div>
             </details>
@@ -183,6 +201,9 @@
         <div class="custom-fields-inline">
           {% for i in info_items %}
           <div class="custom-field-row">
+            {% if not can('equipment.edit') %}
+            <div><strong>{{ i['label'] }}</strong>{% if i['value'] %}: {{ i['value'] }}{% endif %}</div>
+            {% else %}
             <form method="post" action="{{ url_for('equipment.edit_info_item', equipment_id=item['id'], item_id=i['id']) }}" class="custom-field-edit-form">
               <input type="text" name="label" value="{{ i['label'] }}" placeholder="Field name" required>
               <input type="text" name="value" value="{{ i['value'] or '' }}" placeholder="Value">
@@ -194,9 +215,11 @@
                   onsubmit="return confirm('Remove the {{ i['label'] }} field?');">
               <button type="submit" class="btn btn-sm btn-danger">Remove</button>
             </form>
+            {% endif %}
           </div>
           {% endfor %}
 
+          {% if can('equipment.edit') %}
           <form method="post" action="{{ url_for('equipment.new_info_item', equipment_id=item['id']) }}" class="custom-field-add-form">
             <input type="text" name="label" placeholder="Field name (e.g. Oil Capacity)" required>
             <input type="text" name="value" placeholder="Value (optional notes)">
@@ -204,6 +227,7 @@
             <input type="text" name="quantity_unit" placeholder="e.g. liters" class="qty-unit-input">
             <button type="submit" class="btn btn-sm btn-primary">+ Add field</button>
           </form>
+          {% endif %}
         </div>
       </div>
     </section>
@@ -241,7 +265,7 @@
                 {% if not r['next_due_date'] and not r['next_due_meter_reading'] %}—{% endif %}
               </td>
               <td>{{ r['performed_by'] or '—' }}</td>
-              <td><a href="{{ url_for('maintenance.edit', equipment_id=item['id'], record_id=r['id']) }}" class="btn btn-sm">Edit</a></td>
+              <td>{% if can('maintenance.edit') %}<a href="{{ url_for('maintenance.edit', equipment_id=item['id'], record_id=r['id']) }}" class="btn btn-sm">Edit</a>{% endif %}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -259,7 +283,9 @@
       <div class="section-header">
         <h2 class="section-title">Meter History</h2>
         <div class="actions">
+          {% if can('equipment.edit') %}
           <a href="{{ url_for('equipment.new_meter_reading', equipment_id=item['id']) }}" class="btn btn-sm">+ Log reading</a>
+          {% endif %}
         </div>
       </div>
       <div class="panel">
@@ -294,10 +320,12 @@
               <td class="mono">{{ '{:,}'.format(r['reading']) }} {{ item['meter_type'] }}</td>
               <td>{{ r['notes'] or '—' }}</td>
               <td>
+                {% if can('equipment.delete') %}
                 <form method="post" action="{{ url_for('equipment.delete_meter_reading', equipment_id=item['id'], reading_id=r['id']) }}"
                       onsubmit="return confirm('Remove this meter reading?');">
                   <button type="submit" class="btn btn-sm btn-danger">Remove</button>
                 </form>
+                {% endif %}
               </td>
             </tr>
             {% endfor %}

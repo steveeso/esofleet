@@ -1,0 +1,4 @@
+<div class="type-tabs">
+  <a href="{{ url_for('users.list_users') }}" class="type-tab {{ 'active' if active == 'users' }}">Users</a>
+  <a href="{{ url_for('users.list_roles') }}" class="type-tab {{ 'active' if active == 'roles' }}">Roles &amp; permissions</a>
+</div>

@@ -9,7 +9,9 @@
     <div class="subtitle"><a href="{{ url_for('catalog.index', open=category['id'], _anchor='category-' ~ category['id']) }}">{{ category['name'] }}</a> · Parts Catalog</div>
   </div>
   <div class="actions">
+    {% if can('catalog.edit') %}
     <a href="{{ url_for('catalog.edit_item', item_id=item['id'], next=url_for('catalog.item_detail', item_id=item['id'])) }}" class="btn btn-primary">Edit</a>
+    {% endif %}
   </div>
 </div>
 
@@ -153,10 +155,12 @@
           <div class="info-label">{% if spec['flagged'] %}<span class="spec-flag" title="Needs a human review">🚩</span> {% endif %}{{ spec['label'] }}</div>
           <span class="mono">{{ spec['value'] or '—' }}</span>
         </div>
+        {% if can('catalog.edit') %}
         <form method="post" action="{{ url_for('catalog.delete_spec', spec_id=spec['id']) }}"
               onsubmit="return confirm('Remove this spec?');">
           <button type="submit" class="btn btn-sm btn-danger">Remove</button>
         </form>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>
@@ -164,12 +168,14 @@
     <div class="alt-notes">No specifications recorded yet.</div>
     {% endif %}
 
+    {% if can('catalog.edit') %}
     <form method="post" action="{{ url_for('catalog.new_spec', item_id=item['id']) }}" class="alt-add-form" style="margin-top: 12px;">
       <input type="text" name="label" placeholder="Spec name (e.g. Thread size)" required>
       <input type="text" name="value" placeholder="Value (e.g. M22 x 1.5)">
       <label class="flag-checkbox"><input type="checkbox" name="flagged" value="1"> Flag for review</label>
       <button type="submit" class="btn btn-sm btn-primary">Add</button>
     </form>
+    {% endif %}
   </div>
 </section>
 
@@ -186,11 +192,13 @@
           <span class="mono">{{ alt['value'] }}</span>
           {% if alt['notes'] %}<div class="alt-notes">{{ alt['notes'] }}</div>{% endif %}
         </div>
+        {% if can('catalog.edit') %}
         <form method="post" action="{{ url_for('catalog.delete_alternate', alternate_id=alt['id']) }}"
               onsubmit="return confirm('Remove this alternate?');">
           <input type="hidden" name="next" value="{{ url_for('catalog.item_detail', item_id=item['id']) }}">
           <button type="submit" class="btn btn-sm btn-danger">Remove</button>
         </form>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>
@@ -198,12 +206,14 @@
     <div class="alt-notes">No alternates recorded yet.</div>
     {% endif %}
 
+    {% if can('catalog.edit') %}
     <form method="post" action="{{ url_for('catalog.new_alternate', item_id=item['id']) }}" class="alt-add-form" style="margin-top: 12px;">
       <input type="hidden" name="next" value="{{ url_for('catalog.item_detail', item_id=item['id']) }}">
       <input type="text" name="value" placeholder="Alternate part number / spec" required>
       <input type="text" name="notes" placeholder="Brand or notes (optional)">
       <button type="submit" class="btn btn-sm btn-primary">Add</button>
     </form>
+    {% endif %}
   </div>
 </section>
 
@@ -244,8 +254,10 @@
   </div>
 </section>
 
+{% if can('catalog.delete') %}
 <form method="post" action="{{ url_for('catalog.delete_item', item_id=item['id']) }}"
       onsubmit="return confirm('Delete this item from the catalog? It will be unlinked from every piece of equipment using it, and its alternates will be removed.');">
   <button type="submit" class="btn btn-danger">Delete from catalog</button>
 </form>
+{% endif %}
 {% endblock %}

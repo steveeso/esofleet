@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 
 from .. import floorplan, warehouse
 from ..db import get_db
-from .auth import login_required
+from .auth import login_required, permission_required
 
 bp = Blueprint("catalog", __name__, url_prefix="/catalog")
 
@@ -620,7 +620,7 @@ def inventory_audit():
 
 
 @bp.route("/items/<int:item_id>/location", methods=("POST",))
-@login_required
+@permission_required("inventory.edit", json=True)
 def update_item_location(item_id):
     """Endpoint for the Inventory Audit page's inline location editor --
     saved via fetch without a page reload. Shares the same warehouse
@@ -641,7 +641,7 @@ def update_item_location(item_id):
 
 
 @bp.route("/items/<int:item_id>/quantity-on-hand", methods=("POST",))
-@login_required
+@permission_required("inventory.edit", json=True)
 def update_item_quantity_on_hand(item_id):
     """Lightweight endpoint for the Inventory Audit page's inline quantity
     editor -- no history log for this one, just the latest count."""
@@ -654,7 +654,7 @@ def update_item_quantity_on_hand(item_id):
 
 
 @bp.route("/categories/new", methods=("GET", "POST"))
-@login_required
+@permission_required("catalog.edit")
 def new_category():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
@@ -679,7 +679,7 @@ def new_category():
 
 
 @bp.route("/categories/<int:category_id>/edit", methods=("GET", "POST"))
-@login_required
+@permission_required("catalog.edit")
 def edit_category(category_id):
     db = get_db()
     category = _category_or_404(db, category_id)
@@ -703,7 +703,7 @@ def edit_category(category_id):
 
 
 @bp.route("/categories/<int:category_id>/delete", methods=("POST",))
-@login_required
+@permission_required("catalog.delete")
 def delete_category(category_id):
     db = get_db()
     category = _category_or_404(db, category_id)
@@ -798,7 +798,7 @@ def _location_picker_defaults(item):
 
 
 @bp.route("/categories/<int:category_id>/items/new", methods=("GET", "POST"))
-@login_required
+@permission_required("catalog.edit")
 def new_item(category_id):
     db = get_db()
     category = _category_or_404(db, category_id)
@@ -834,7 +834,7 @@ def new_item(category_id):
 
 
 @bp.route("/items/<int:item_id>/edit", methods=("GET", "POST"))
-@login_required
+@permission_required("catalog.edit")
 def edit_item(item_id):
     db = get_db()
     item = _item_or_404(db, item_id)
@@ -937,7 +937,7 @@ def item_detail(item_id):
 
 
 @bp.route("/items/<int:item_id>/delete", methods=("POST",))
-@login_required
+@permission_required("catalog.delete")
 def delete_item(item_id):
     db = get_db()
     item = _item_or_404(db, item_id)
@@ -949,7 +949,7 @@ def delete_item(item_id):
 
 
 @bp.route("/items/<int:item_id>/alternates/new", methods=("POST",))
-@login_required
+@permission_required("catalog.edit")
 def new_alternate(item_id):
     db = get_db()
     item = _item_or_404(db, item_id)
@@ -970,7 +970,7 @@ def new_alternate(item_id):
 
 
 @bp.route("/alternates/<int:alternate_id>/edit", methods=("POST",))
-@login_required
+@permission_required("catalog.edit")
 def edit_alternate(alternate_id):
     db = get_db()
     alt = _alternate_or_404(db, alternate_id)
@@ -997,7 +997,7 @@ def edit_alternate(alternate_id):
 
 
 @bp.route("/alternates/<int:alternate_id>/delete", methods=("POST",))
-@login_required
+@permission_required("catalog.edit")
 def delete_alternate(alternate_id):
     db = get_db()
     alt = _alternate_or_404(db, alternate_id)
@@ -1014,7 +1014,7 @@ def delete_alternate(alternate_id):
 
 
 @bp.route("/items/<int:item_id>/specs/new", methods=("POST",))
-@login_required
+@permission_required("catalog.edit")
 def new_spec(item_id):
     db = get_db()
     _item_or_404(db, item_id)
@@ -1036,7 +1036,7 @@ def new_spec(item_id):
 
 
 @bp.route("/specs/<int:spec_id>/delete", methods=("POST",))
-@login_required
+@permission_required("catalog.edit")
 def delete_spec(spec_id):
     db = get_db()
     spec = db.execute("SELECT * FROM catalog_item_specs WHERE id = ?", (spec_id,)).fetchone()
@@ -1049,13 +1049,13 @@ def delete_spec(spec_id):
 
 
 @bp.route("/import")
-@login_required
+@permission_required("catalog.import")
 def import_form():
     return render_template("catalog/import.html")
 
 
 @bp.route("/import", methods=("POST",))
-@login_required
+@permission_required("catalog.import")
 def import_preview():
     file = request.files.get("xlsx_file")
     if not file or not file.filename:
@@ -1082,7 +1082,7 @@ def import_preview():
 
 
 @bp.route("/import/confirm", methods=("POST",))
-@login_required
+@permission_required("catalog.import")
 def import_confirm():
     try:
         file_bytes = base64.b64decode(request.form.get("file_data", ""))
