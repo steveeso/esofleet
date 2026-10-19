@@ -1,15 +1,16 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-env="{{ app_env }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Log in · EsoFleet</title>
+  <title>Log in · {{ app_name }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
   <div class="login-wrap">
     <div class="login-card">
-      <h1>EsoFleet</h1>
+      <h1>{{ app_name }}</h1>
+      {% if app_env == 'test' %}<div class="env-badge env-badge-light">Test environment</div>{% endif %}
       <div class="sub">Sign in to manage the fleet.</div>
 
       {% with messages = get_flashed_messages(with_categories=true) %}

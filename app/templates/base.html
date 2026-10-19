@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-env="{{ app_env }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Fleet{% endblock %} · EsoFleet</title>
+  <title>{% block title %}Fleet{% endblock %} · {{ app_name }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -12,7 +12,10 @@
       <div class="sidebar-brand">
         <div class="sidebar-brand-row">
           <div>
-            EsoFleet
+            {{ app_name }}
+            {% if app_env == 'test' %}
+            <span class="env-badge">Test environment</span>
+            {% endif %}
             <span class="unit">Equipment &amp; maintenance tracking</span>
           </div>
           <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar-nav">

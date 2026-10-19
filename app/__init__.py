@@ -5,6 +5,21 @@ from flask import Flask, render_template
 from . import db
 
 
+def _environment(app):
+    """"test" or "production". The FLEET_ENV variable wins; otherwise a
+    one-word instance/environment file, so a machine's role sticks no matter
+    how the server gets started. instance/ is git-ignored, which is what lets
+    the same code be "test" on one machine and "production" on another."""
+    value = os.environ.get("FLEET_ENV", "")
+    if not value:
+        try:
+            with open(os.path.join(app.instance_path, "environment"), encoding="utf-8") as f:
+                value = f.read()
+        except OSError:
+            pass
+    return "test" if value.strip().lower() == "test" else "production"
+
+
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
@@ -24,6 +39,12 @@ def create_app(test_config=None):
     # by hand after an update.
     with app.app_context():
         db.init_db()
+
+    app_env = _environment(app)
+
+    @app.context_processor
+    def inject_environment():
+        return {"app_env": app_env, "app_name": "TestFleet" if app_env == "test" else "EsoFleet"}
 
     @app.errorhandler(403)
     def forbidden(e):

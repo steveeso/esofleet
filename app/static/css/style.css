@@ -23,6 +23,34 @@
   --font-data: ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", monospace;
 }
 
+/* Test deployment (instance/environment or FLEET_ENV=test): same layout,
+   violet instead of teal, so it's never mistaken for the live fleet. Violet
+   because it doesn't collide with the green/amber/red status colors. */
+html[data-env="test"] {
+  --color-bg: #F4F2F8;
+  --color-sidebar: #241B38;
+  --color-sidebar-text: #BDB2D4;
+  --color-sidebar-accent: #8B5FD1;
+  --color-primary: #6A3FB0;
+  --color-primary-hover: #52308C;
+}
+html[data-env="test"] .sidebar-brand { border-bottom-color: #3A2E57; }
+
+.env-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: #F2B84B;
+  color: #3B2A06;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.env-badge-light { margin: 0 0 6px 0; }
+
 * { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; }
