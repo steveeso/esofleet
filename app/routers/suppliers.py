@@ -8,8 +8,8 @@ from .auth import login_required, permission_required
 
 bp = Blueprint("suppliers", __name__, url_prefix="/suppliers")
 
-# Stored as plain text on supplier_contacts.role (see schema.sql). Order here
-# is the dropdown order.
+# Suggestions only -- supplier_contacts.role is free text, so anything typed
+# is kept. Order here is the suggestion order.
 CONTACT_ROLES = ["Sales rep", "Parts counter", "Service", "Warranty", "Accounts"]
 
 SHOW_OPTIONS = ("active", "inactive", "all")
@@ -314,8 +314,6 @@ def _set_active(supplier_id, active):
 
 def _read_contact_form(form):
     data = _clean(form, CONTACT_FIELDS)
-    if data["role"] not in CONTACT_ROLES:
-        data["role"] = None
     error = None
     if not data["name"]:
         error = "Contact name is required."

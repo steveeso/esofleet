@@ -17,12 +17,12 @@
     </div>
     <div class="field">
       <label for="role">Role</label>
-      <select id="role" name="role">
-        <option value="">—</option>
+      <input type="text" id="role" name="role" list="contact-roles" value="{{ contact.get('role') or '' }}" placeholder="Sales rep, Parts counter…">
+      <datalist id="contact-roles">
         {% for r in roles %}
-        <option value="{{ r }}" {{ 'selected' if contact.get('role') == r }}>{{ r }}</option>
+        <option value="{{ r }}">
         {% endfor %}
-      </select>
+      </datalist>
     </div>
     <div class="field">
       <label for="direct_phone">Direct phone</label>

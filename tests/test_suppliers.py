@@ -141,10 +141,10 @@ def test_contacts_and_last_edited(app, client):
         contact_id = db.execute("SELECT id FROM supplier_contacts").fetchone()["id"]
         assert db.execute("SELECT updated_by FROM suppliers").fetchone()["updated_by"] == "admin"
 
-    client.post(f"/suppliers/{supplier_id}/contacts/{contact_id}/edit", data={"name": "Dave", "role": "bogus"})
+    client.post(f"/suppliers/{supplier_id}/contacts/{contact_id}/edit", data={"name": "Dave", "role": "Shop foreman"})
     with app.app_context():
         row = get_db().execute("SELECT name, role FROM supplier_contacts").fetchone()
-        assert row["name"] == "Dave" and row["role"] is None
+        assert row["name"] == "Dave" and row["role"] == "Shop foreman"
 
     # A contact id that belongs to another supplier is a 404, not an edit.
     other_id = _add_supplier(client, name="Other")

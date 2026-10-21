@@ -274,9 +274,8 @@ CREATE TABLE IF NOT EXISTS supplier_category_links (
     PRIMARY KEY (supplier_id, category_id)
 );
 
--- People at a supplier. role is one of suppliers.py's CONTACT_ROLES, checked
--- in the app rather than the database so the list can grow without a
--- table rebuild.
+-- People at a supplier. role is free text; suppliers.py's CONTACT_ROLES are
+-- only offered as suggestions.
 CREATE TABLE IF NOT EXISTS supplier_contacts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
