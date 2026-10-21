@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Supplier categories{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Supplier categories</h1>
+    <div class="subtitle"><a href="{{ url_for('suppliers.list_suppliers') }}">Suppliers</a></div>
+  </div>
+</div>
+
+<div class="panel custom-fields-panel" style="max-width: 640px;">
+  {% for c in categories %}
+  <div class="custom-field-row">
+    {% if can('suppliers.edit') %}
+    <form method="post" action="{{ url_for('suppliers.edit_category', category_id=c['id']) }}" class="custom-field-edit-form">
+      <input type="text" name="name" value="{{ c['name'] }}" required aria-label="Category name">
+      <span class="field-hint">{{ c['supplier_count'] }} supplier{{ '' if c['supplier_count'] == 1 else 's' }}</span>
+      <button type="submit" class="btn btn-sm">Rename</button>
+    </form>
+    <form method="post" action="{{ url_for('suppliers.delete_category', category_id=c['id']) }}"
+          onsubmit='return confirm({{ ("Remove the " ~ c["name"] ~ " category? Suppliers in it are kept, they just lose this tag.")|tojson }});'>
+      <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+    </form>
+    {% else %}
+    <a href="{{ url_for('suppliers.list_suppliers', category=c['id']) }}">{{ c['name'] }}</a>
+    <span class="field-hint">{{ c['supplier_count'] }} supplier{{ '' if c['supplier_count'] == 1 else 's' }}</span>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="empty-state"><h3>No categories</h3></div>
+  {% endfor %}
+
+  {% if can('suppliers.edit') %}
+  <form method="post" action="{{ url_for('suppliers.new_category') }}" class="custom-field-add-form">
+    <input type="text" name="name" placeholder="New category (e.g. Electrical)" required aria-label="New category name">
+    <button type="submit" class="btn btn-sm btn-primary">+ Add category</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

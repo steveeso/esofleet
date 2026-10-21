@@ -30,6 +30,7 @@
         <a href="{{ url_for('equipment.table') }}" class="{{ 'active' if request.endpoint == 'equipment.table' }}">Equipment Table</a>
         <a href="{{ url_for('catalog.inventory_audit') }}" class="{{ 'active' if request.endpoint == 'catalog.inventory_audit' }}">Inventory Audit</a>
         <a href="{{ url_for('catalog.index') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') and request.endpoint not in ('catalog.parts_list', 'catalog.inventory_audit') }}">Parts Catalog</a>
+        <a href="{{ url_for('suppliers.list_suppliers') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('suppliers.') }}">Suppliers</a>
         {% if g.user and g.user['role'] == 'admin' %}
         <a href="{{ url_for('users.list_users') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('users.') }}">Users</a>
         {% endif %}

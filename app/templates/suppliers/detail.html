@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier['name'] }}{% endblock %}
+
+{% macro phone_link(number) %}{% if number %}{% set href = number|tel_href %}{% if href %}<a href="{{ href }}" class="tap-link">{{ number }}</a>{% else %}{{ number }}{% endif %}{% else %}—{% endif %}{% endmacro %}
+{% macro email_link(address) %}{% if address %}<a href="mailto:{{ address }}" class="tap-link">{{ address }}</a>{% else %}—{% endif %}{% endmacro %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ supplier['name'] }}</h1>
+    <div class="subtitle">
+      {% if supplier['is_active'] %}
+      <span class="status active"><span class="dot"></span>Active</span>
+      {% else %}
+      <span class="status neutral"><span class="dot"></span>Inactive</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn">All suppliers</a>
+    {% if can('suppliers.edit') %}
+    <a href="{{ url_for('suppliers.edit', supplier_id=supplier['id']) }}" class="btn btn-primary">Edit supplier</a>
+    {% endif %}
+  </div>
+</div>
+
+<section class="detail-section">
+  <div class="panel">
+    <div class="info-grid">
+      <div><div class="info-label">Main phone</div><div class="info-value">{{ phone_link(supplier['phone']) }}</div></div>
+      <div><div class="info-label">Email</div><div class="info-value">{{ email_link(supplier['email']) }}</div></div>
+      <div><div class="info-label">Website</div><div class="info-value">
+        {% if supplier['website'] %}<a href="{{ supplier['website']|website_href }}" target="_blank" rel="noopener noreferrer" class="tap-link">{{ supplier['website'] }}</a>{% else %}—{% endif %}
+      </div></div>
+      <div><div class="info-label">Our account #</div><div class="info-value mono">{{ supplier['account_number'] or '—' }}</div></div>
+      <div><div class="info-label">Categories</div><div class="info-value">
+        {% if categories %}<span class="tag-list">{% for c in categories %}<a class="tag" href="{{ url_for('suppliers.list_suppliers', category=c['id']) }}">{{ c['name'] }}</a>{% endfor %}</span>{% else %}—{% endif %}
+      </div></div>
+      <div><div class="info-label">Brands / lines</div><div class="info-value">
+        {% if brands %}<span class="tag-list">{% for b in brands %}<a class="tag" href="{{ url_for('suppliers.list_suppliers', q=b) }}">{{ b }}</a>{% endfor %}</span>{% else %}—{% endif %}
+      </div></div>
+      <div><div class="info-label">Address</div><div class="info-value pre-line">{% if supplier['address'] %}<a href="https://www.google.com/maps/search/?api=1&query={{ supplier['address']|urlencode }}" target="_blank" rel="noopener noreferrer">{{ supplier['address'] }}</a>{% else %}—{% endif %}</div></div>
+      <div><div class="info-label">Hours</div><div class="info-value pre-line">{{ supplier['hours'] or '—' }}</div></div>
+      <div class="full"><div class="info-label">Notes</div><div class="info-value pre-line">{{ supplier['notes'] or '—' }}</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="contacts" class="detail-section">
+  <div class="section-header">
+    <h2 class="section-title">Contacts</h2>
+    {% if can('suppliers.edit') %}
+    <div class="actions">
+      <a href="{{ url_for('suppliers.new_contact', supplier_id=supplier['id']) }}" class="btn btn-sm btn-primary">+ Add contact</a>
+    </div>
+    {% endif %}
+  </div>
+  <div class="panel">
+    {% if contacts %}
+    <ul class="contact-list">
+      {% for c in contacts %}
+      <li class="contact-card">
+        <div class="contact-head">
+          <div>
+            <span class="contact-name">{{ c['name'] }}</span>
+            {% if c['role'] %}<span class="tag">{{ c['role'] }}</span>{% endif %}
+          </div>
+          {% if can('suppliers.edit') %}
+          <a href="{{ url_for('suppliers.edit_contact', supplier_id=supplier['id'], contact_id=c['id']) }}" class="btn btn-sm">Edit</a>
+          {% endif %}
+        </div>
+        <div class="contact-lines">
+          {% if c['direct_phone'] %}<div><span class="info-label">Direct</span> {{ phone_link(c['direct_phone']) }}</div>{% endif %}
+          {% if c['cell_phone'] %}<div><span class="info-label">Cell</span> {{ phone_link(c['cell_phone']) }}</div>{% endif %}
+          {% if c['email'] %}<div><span class="info-label">Email</span> {{ email_link(c['email']) }}</div>{% endif %}
+          {% if c['notes'] %}<div class="contact-notes pre-line">{{ c['notes'] }}</div>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+      <h3>No contacts yet</h3>
+      <div>Add the sales rep, parts counter, or whoever you actually call.</div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<div class="last-edited">
+  Last edited {{ supplier['updated_at'] }} UTC{% if supplier['updated_by'] %} by {{ supplier['updated_by'] }}{% endif %}
+  {% if supplier['created_by'] %} · added by {{ supplier['created_by'] }}{% endif %}
+</div>
+
+{% if can('suppliers.edit') %}
+<div style="margin-top: 12px;">
+  {% if supplier['is_active'] %}
+  <form method="post" action="{{ url_for('suppliers.deactivate', supplier_id=supplier['id']) }}"
+        onsubmit='return confirm({{ ("Mark " ~ supplier["name"] ~ " inactive? It will be hidden from the supplier list but kept on file.")|tojson }});'>
+    <button type="submit" class="btn btn-danger btn-sm">Deactivate supplier</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('suppliers.reactivate', supplier_id=supplier['id']) }}">
+    <button type="submit" class="btn btn-sm">Reactivate supplier</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

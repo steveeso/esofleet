@@ -235,3 +235,70 @@ CREATE INDEX IF NOT EXISTS idx_location_history_item ON catalog_item_location_hi
 CREATE INDEX IF NOT EXISTS idx_catalog_item_specs_item ON catalog_item_specs(catalog_item_id);
 CREATE INDEX IF NOT EXISTS idx_equipment_catalog_items_item ON equipment_catalog_items(catalog_item_id);
 CREATE INDEX IF NOT EXISTS idx_info_items_equipment ON equipment_info_items(equipment_id);
+
+-- Supplier "Rolodex": who to call for parts, service and support. Suppliers
+-- are never hard-deleted -- is_active=0 hides them from the default list but
+-- keeps the record (and anything that later links to it) intact.
+-- created_by/updated_by hold the username as text, like
+-- catalog_item_location_history.changed_by, so a since-deleted user's edits
+-- still show who made them.
+CREATE TABLE IF NOT EXISTS suppliers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    account_number TEXT,
+    phone TEXT,
+    email TEXT,
+    website TEXT,
+    address TEXT,
+    hours TEXT,
+    notes TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_by TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_by TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- The editable category list (Parts, Filters, Tires, ...), seeded once by
+-- the 0004_seed_supplier_categories migration. A supplier can be in several.
+CREATE TABLE IF NOT EXISTS supplier_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS supplier_category_links (
+    supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+    category_id INTEGER NOT NULL REFERENCES supplier_categories(id) ON DELETE CASCADE,
+    PRIMARY KEY (supplier_id, category_id)
+);
+
+-- People at a supplier. role is one of suppliers.py's CONTACT_ROLES, checked
+-- in the app rather than the database so the list can grow without a
+-- table rebuild.
+CREATE TABLE IF NOT EXISTS supplier_contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    role TEXT,
+    direct_phone TEXT,
+    cell_phone TEXT,
+    email TEXT,
+    notes TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Brands/lines a supplier carries (Baldwin, Donaldson, ...) as free-text
+-- tags. Case-insensitive unique per supplier so "baldwin" and "Baldwin"
+-- don't both get stored.
+CREATE TABLE IF NOT EXISTS supplier_brands (
+    supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+    brand TEXT NOT NULL COLLATE NOCASE,
+    PRIMARY KEY (supplier_id, brand)
+);
+
+CREATE INDEX IF NOT EXISTS idx_suppliers_active ON suppliers(is_active);
+CREATE INDEX IF NOT EXISTS idx_supplier_category_links_category ON supplier_category_links(category_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_contacts_supplier ON supplier_contacts(supplier_id);

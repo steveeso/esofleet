@@ -82,6 +82,25 @@ decision is made that a future reader would otherwise have to guess at.
   would silently highlight the wrong shelf, which is worse than showing no
   floor plan at all.
 
+- **Suppliers** live in `suppliers`, with categories as a many-to-many
+  (`supplier_categories` + `supplier_category_links`) so the category list
+  is editable data rather than a hard-coded enum, `supplier_contacts` for
+  people, and `supplier_brands` as free-text tags (case-insensitive unique
+  per supplier). Suppliers are soft-deleted only (`is_active`) because
+  Phase 2 will link them to units and parts, and a hard delete would
+  silently break those links. `created_by`/`updated_by` store the username
+  as text, not a user id, so the history survives a user being deleted;
+  contact changes also bump the supplier's `updated_*`. The existing
+  `catalog_items.supplier_stock`/`napa_stock` columns are unrelated stock
+  snapshots and were deliberately left alone. The default categories are
+  seeded once (`0004_seed_supplier_categories`), so a category someone
+  deletes stays deleted.
+- **New permissions need a grant migration.** `0003_seed_roles` only ran
+  once, so a permission added to `permissions.py` later isn't on the
+  existing `editor` role automatically. `_grant_new_permission()` in
+  `db.py` adds it to `editor` once (see `0005_grant_suppliers_edit`); custom
+  roles are left for an admin to decide.
+
 ## Warehouse layout and floor plan rendering
 
 - **`app/warehouse.py` is the single source of truth** for which

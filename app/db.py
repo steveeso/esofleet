@@ -64,6 +64,8 @@ def _migrate(db):
     _backfill_enabled_fields(db)
     _remap_equipment_statuses(db)
     _seed_roles(db)
+    _seed_supplier_categories(db)
+    _grant_new_permission(db, "0005_grant_suppliers_edit", "suppliers.edit")
     _ensure_column(db, "equipment_catalog_items", "quantity", "REAL")
     _ensure_column(db, "equipment_info_items", "quantity", "REAL")
     _ensure_column(db, "equipment_catalog_items", "quantity_unit", "TEXT")
@@ -155,6 +157,42 @@ def _seed_roles(db):
                 "INSERT OR IGNORE INTO role_permissions (role, permission) VALUES (?, ?)",
                 (role, perm),
             )
+    _mark_migration_applied(db, name)
+
+
+SUPPLIER_CATEGORIES = [
+    "Parts", "Filters", "Tires", "Dealer", "Glass", "Hydraulics",
+    "Towing", "Fuel", "Fabrication", "Other",
+]
+
+
+def _seed_supplier_categories(db):
+    """One-time only: the starting supplier category list. Tracked so a
+    category an admin later deletes or renames doesn't come back on the
+    next startup."""
+    name = "0004_seed_supplier_categories"
+    if _migration_applied(db, name):
+        return
+    for order, category in enumerate(SUPPLIER_CATEGORIES):
+        db.execute(
+            "INSERT OR IGNORE INTO supplier_categories (name, sort_order) VALUES (?, ?)",
+            (category, order),
+        )
+    _mark_migration_applied(db, name)
+
+
+def _grant_new_permission(db, name, permission):
+    """One-time only: give a newly added permission to the built-in editor
+    role, matching 0003_seed_roles' promise that editors can change
+    everything. Custom roles are left alone -- an admin decides for those --
+    and an admin who later unticks it for editors keeps that choice."""
+    if _migration_applied(db, name):
+        return
+    if db.execute("SELECT 1 FROM roles WHERE name = 'editor'").fetchone():
+        db.execute(
+            "INSERT OR IGNORE INTO role_permissions (role, permission) VALUES ('editor', ?)",
+            (permission,),
+        )
     _mark_migration_applied(db, name)
 
 

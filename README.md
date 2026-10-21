@@ -194,6 +194,20 @@ Once you're logged in as an admin, you can add further users from the
   also feeds its meter reading into the equipment's meter history. The
   next-due fields are captured but not currently used to flag anything —
   see the note above about scheduled maintenance being on hold.
+- **Suppliers** — a "Rolodex" of who to call for parts, service and
+  support. Each supplier has a company name, one or more categories (Parts,
+  Filters, Tires, Dealer, Glass, Hydraulics, Towing, Fuel, Fabrication,
+  Other — the list is editable from the **Categories** button), our account
+  number with them, main phone, email, website, address, hours, notes, the
+  brands/lines they carry (free-text tags like Baldwin, Donaldson,
+  Fleetguard) and any number of contacts (name, role, direct phone, cell,
+  email, notes). The list is sorted A–Z and searches company, contact name,
+  brand and category, with a category filter. Phone numbers and emails are
+  tap-to-call / tap-to-email links, and the pages are laid out for a phone.
+  Suppliers are never deleted, only marked inactive (hidden from the list
+  by default, still on file); each one records who last edited it and
+  when. Editing needs the **Add & edit suppliers** permission (given to
+  editors by default; viewers are read-only).
 - **Users (admin only)** — add/remove logins, reset passwords, and set each
   user's role. A user's role decides what they can do (add/edit/delete/import
   equipment, parts, maintenance, and stock counts), and an admin can tick those
@@ -242,9 +256,10 @@ EsoFleet/
     seed.py            # sample data generator
     warehouse.py       # canonical warehouse room/aisle/bank layout + location codes
     floorplan.py       # renders warehouse.py's layout as inline SVG
-    routers/           # route handlers (auth, catalog, dashboard, equipment, maintenance, users)
+    routers/           # route handlers (auth, catalog, dashboard, equipment, maintenance, suppliers, users)
     templates/         # Jinja2 HTML templates
     static/css/        # stylesheet
+  tests/               # pytest suite (pip install -r requirements-dev.txt, then: python -m pytest)
   run.py               # entry point
   requirements.txt
 ```

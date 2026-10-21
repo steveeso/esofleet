@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Add contact' if mode == 'new' else 'Edit contact' }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ 'Add contact' if mode == 'new' else 'Edit ' + (contact.get('name') or '') }}</h1>
+    <div class="subtitle"><a href="{{ url_for('suppliers.detail', supplier_id=supplier['id']) }}">{{ supplier['name'] }}</a></div>
+  </div>
+</div>
+
+<form method="post" class="panel" style="padding: 24px; max-width: 720px;">
+  <div class="form-grid">
+    <div class="field">
+      <label for="name">Name *</label>
+      <input type="text" id="name" name="name" value="{{ contact.get('name') or '' }}" required>
+    </div>
+    <div class="field">
+      <label for="role">Role</label>
+      <select id="role" name="role">
+        <option value="">—</option>
+        {% for r in roles %}
+        <option value="{{ r }}" {{ 'selected' if contact.get('role') == r }}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="direct_phone">Direct phone</label>
+      <input type="tel" id="direct_phone" name="direct_phone" value="{{ contact.get('direct_phone') or '' }}">
+    </div>
+    <div class="field">
+      <label for="cell_phone">Cell</label>
+      <input type="tel" id="cell_phone" name="cell_phone" value="{{ contact.get('cell_phone') or '' }}">
+    </div>
+    <div class="field full">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" value="{{ contact.get('email') or '' }}">
+    </div>
+    <div class="field full">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes">{{ contact.get('notes') or '' }}</textarea>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ 'Add contact' if mode == 'new' else 'Save changes' }}</button>
+    <a href="{{ url_for('suppliers.detail', supplier_id=supplier['id'], _anchor='contacts') }}" class="btn">Cancel</a>
+  </div>
+</form>
+
+{% if mode == 'edit' %}
+<form method="post" action="{{ url_for('suppliers.delete_contact', supplier_id=supplier['id'], contact_id=contact['id']) }}"
+      onsubmit='return confirm({{ ("Remove " ~ contact.get("name") ~ " from " ~ supplier["name"] ~ "?")|tojson }});' style="margin-top: 12px;">
+  <button type="submit" class="btn btn-danger btn-sm">Remove contact</button>
+</form>
+{% endif %}
+{% endblock %}

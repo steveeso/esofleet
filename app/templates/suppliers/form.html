@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Add supplier' if mode == 'new' else 'Edit supplier' }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ 'Add supplier' if mode == 'new' else 'Edit ' + (supplier.get('name') or '') }}</h1>
+    <div class="subtitle">Suppliers</div>
+  </div>
+</div>
+
+<form method="post" class="panel" style="padding: 24px;">
+  <div class="form-grid">
+    <div class="field full">
+      <label for="name">Company name *</label>
+      <input type="text" id="name" name="name" value="{{ supplier.get('name') or '' }}" required>
+    </div>
+
+    <div class="field">
+      <label for="phone">Main phone</label>
+      <input type="tel" id="phone" name="phone" value="{{ supplier.get('phone') or '' }}" placeholder="613-555-0142">
+    </div>
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" value="{{ supplier.get('email') or '' }}">
+    </div>
+
+    <div class="field">
+      <label for="website">Website</label>
+      <input type="text" id="website" name="website" value="{{ supplier.get('website') or '' }}" placeholder="example.com" inputmode="url">
+    </div>
+    <div class="field">
+      <label for="account_number">Our account #</label>
+      <input type="text" id="account_number" name="account_number" value="{{ supplier.get('account_number') or '' }}">
+    </div>
+
+    <div class="field full">
+      <label>Categories</label>
+      <div class="checkbox-grid">
+        {% for c in categories %}
+        <label class="checkbox-pill">
+          <input type="checkbox" name="category_ids" value="{{ c['id'] }}" {{ 'checked' if c['id'] in selected_ids }}>
+          {{ c['name'] }}
+        </label>
+        {% endfor %}
+      </div>
+      <div class="hint">The list itself is edited on the <a href="{{ url_for('suppliers.categories') }}">Categories</a> page.</div>
+    </div>
+
+    <div class="field full">
+      <label for="brands">Brands / lines carried</label>
+      <input type="text" id="brands" name="brands" value="{{ brands_text }}" placeholder="Baldwin, Donaldson, Fleetguard">
+      <div class="hint">Separate with commas.</div>
+    </div>
+
+    <div class="field">
+      <label for="address">Address</label>
+      <textarea id="address" name="address">{{ supplier.get('address') or '' }}</textarea>
+    </div>
+    <div class="field">
+      <label for="hours">Hours</label>
+      <textarea id="hours" name="hours" placeholder="Mon–Fri 7:30–5, Sat 8–12">{{ supplier.get('hours') or '' }}</textarea>
+    </div>
+
+    <div class="field full">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes">{{ supplier.get('notes') or '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ 'Add supplier' if mode == 'new' else 'Save changes' }}</button>
+    <a href="{{ url_for('suppliers.detail', supplier_id=supplier['id']) if mode == 'edit' else url_for('suppliers.list_suppliers') }}" class="btn">Cancel</a>
+  </div>
+</form>
+{% endblock %}

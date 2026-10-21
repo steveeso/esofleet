@@ -837,3 +837,77 @@ details[open] > summary .acc-summary-main::before { transform: rotate(90deg); }
 .perm-table .field-hint { white-space: normal; }
 .perm-table td:first-child .field-hint { max-width: 380px; }
 .perm-matrix .perm-check { width: 96px; }
+
+/* Suppliers -- laid out as stacked rows/cards rather than wide tables,
+   since this is mostly opened on a phone in the shop or yard to find who
+   to call. Phone/email links get a bigger tap target on small screens. */
+.supplier-list, .contact-list { list-style: none; margin: 0; padding: 0; }
+
+.supplier-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+.supplier-row:last-child { border-bottom: none; }
+.supplier-row.inactive { opacity: 0.65; }
+.supplier-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-ink);
+}
+.supplier-row-main:hover { text-decoration: none; }
+.supplier-row-main:hover .supplier-name { color: var(--color-primary); }
+.supplier-name { font-weight: 600; font-size: 15px; }
+.supplier-brands { font-size: 13px; color: var(--color-ink-muted); }
+.call-btn { white-space: nowrap; flex: 0 0 auto; }
+
+.tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #EDEEF4;
+  color: #4A4E7A;
+  font-size: 12px;
+  font-weight: 500;
+}
+a.tag:hover { text-decoration: none; background: #E0E2EC; }
+
+.pre-line { white-space: pre-line; }
+
+.contact-card { padding: 14px 18px; border-bottom: 1px solid var(--color-border); }
+.contact-card:last-child { border-bottom: none; }
+.contact-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+.contact-head .tag { margin-left: 6px; }
+.contact-name { font-weight: 600; }
+.contact-lines { display: flex; flex-direction: column; gap: 4px; font-size: 14.5px; }
+.contact-lines .info-label { display: inline-block; min-width: 52px; margin: 0; }
+.contact-notes { color: var(--color-ink-muted); font-size: 13.5px; }
+
+.last-edited { margin-top: 4px; font-size: 12.5px; color: var(--color-ink-muted); }
+
+.checkbox-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.field .checkbox-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  margin: 0;
+  font-weight: 400;
+  cursor: pointer;
+}
+.checkbox-pill input { width: auto; margin: 0; }
+
+@media (max-width: 560px) {
+  .supplier-row { flex-wrap: wrap; padding: 12px 14px; }
+  .call-btn { width: 100%; justify-content: center; padding: 10px; font-size: 15px; }
+  .tap-link { display: inline-block; padding: 6px 0; font-size: 16px; }
+  .filter-bar .search-clear-wrap, .filter-bar input[type="text"] { width: 100%; max-width: none; }
+}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Suppliers{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Suppliers</h1>
+    <div class="subtitle">{{ suppliers|length }} supplier{{ '' if suppliers|length == 1 else 's' }}{% if show != 'active' %} ({{ show }}){% endif %}</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('suppliers.categories') }}" class="btn">Categories</a>
+    {% if can('suppliers.edit') %}
+    <a href="{{ url_for('suppliers.new') }}" class="btn btn-primary">+ Add supplier</a>
+    {% endif %}
+  </div>
+</div>
+
+<form class="filter-bar" method="get">
+  <div class="search-clear-wrap">
+    <input type="text" id="supplier-search" name="q" placeholder="Search company, contact, brand, category…" value="{{ q }}">
+    <button type="button" class="search-clear" data-clear-target="supplier-search" aria-label="Clear search" {{ 'hidden' if not q }}>&times;</button>
+  </div>
+  <select name="category" onchange="this.form.submit()" aria-label="Category">
+    <option value="">All categories</option>
+    {% for c in categories %}
+    <option value="{{ c['id'] }}" {{ 'selected' if c['id'] == category_id }}>{{ c['name'] }}</option>
+    {% endfor %}
+  </select>
+  <select name="show" onchange="this.form.submit()" aria-label="Active or inactive">
+    <option value="active" {{ 'selected' if show == 'active' }}>Active</option>
+    <option value="inactive" {{ 'selected' if show == 'inactive' }}>Inactive</option>
+    <option value="all" {{ 'selected' if show == 'all' }}>Active &amp; inactive</option>
+  </select>
+  <button type="submit" class="btn">Search</button>
+  {% if q or category_id or show != 'active' %}
+  <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn">Clear</a>
+  {% endif %}
+</form>
+
+<script>
+(function() {
+  var input = document.getElementById('supplier-search');
+  var btn = document.querySelector('.search-clear[data-clear-target="supplier-search"]');
+  if (!input || !btn) return;
+  input.addEventListener('input', function() { btn.hidden = !input.value; });
+  btn.addEventListener('click', function() { input.value = ''; input.form.submit(); });
+})();
+</script>
+
+<div class="panel">
+  {% if suppliers %}
+  <ul class="supplier-list">
+    {% for s in suppliers %}
+    {% set cats = categories_by_supplier[s['id']] %}
+    {% set brands = brands_by_supplier[s['id']] %}
+    <li class="supplier-row{{ ' inactive' if not s['is_active'] }}">
+      <a class="supplier-row-main" href="{{ url_for('suppliers.detail', supplier_id=s['id']) }}">
+        <span class="supplier-name">{{ s['name'] }}{% if not s['is_active'] %} <span class="status neutral">Inactive</span>{% endif %}</span>
+        {% if cats %}
+        <span class="tag-list">{% for c in cats %}<span class="tag">{{ c['name'] }}</span>{% endfor %}</span>
+        {% endif %}
+        {% if brands %}
+        <span class="supplier-brands">{{ brands|join(', ') }}</span>
+        {% endif %}
+      </a>
+      {% if s['phone']|tel_href %}
+      <a class="btn btn-sm call-btn" href="{{ s['phone']|tel_href }}" aria-label="Call {{ s['name'] }}">📞 {{ s['phone'] }}</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty-state">
+    <h3>No suppliers found</h3>
+    <div>Try a different search{% if can('suppliers.edit') %}, or add the first supplier{% endif %}.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

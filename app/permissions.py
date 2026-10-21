@@ -27,6 +27,8 @@ PERMISSIONS = [
     ("catalog.import", "Import parts from CSV", "Parts catalog", ""),
     ("inventory.edit", "Edit stock counts & locations", "Inventory",
      "Change a part's quantity on hand and shelf location (Inventory Audit page)."),
+    ("suppliers.edit", "Add & edit suppliers", "Suppliers",
+     "Add, edit and deactivate suppliers and their contacts, and edit the supplier category list."),
 ]
 
 ALL_KEYS = [p[0] for p in PERMISSIONS]
