@@ -109,7 +109,22 @@ decision is made that a future reader would otherwise have to guess at.
   another building, another floor — is just a new entry with its own
   aisle layout and its own building geometry (wall outline, doors, shelf
   rectangles), not a rewrite of the picker, the composer/parser, or the
-  renderer. Only `gm_down` exists today.
+  renderer. `gm_down` is the only room with a layout; `gm_up` (upstairs,
+  same facility) is registered as an empty stub — no outline or
+  structures yet, so it has no valid aisles and nothing can be assigned
+  to it or rendered for it until it's measured and filled in.
+  - **Aisle numbers are unique across floors, by convention**: GM-Down
+    uses 01-10 (11-19 reserved for its growth), GM-Up starts at 20. The
+    code is already room-qualified, so this isn't needed for the data —
+    it's so a bare "Aisle 23" (a felt-pen shelf label, a spreadsheet cell,
+    something said out loud) identifies the floor without naming it.
+    Aisle numbers are two digits in the code format (max 99).
+  - The human-readable `location` string omits the room name only while
+    exactly one room is registered (`compose()` checks `len(ROOMS)`).
+    Registering `gm_up` flipped that, so existing GM-Down locations were
+    rewritten once to "GM-Down — Aisle …" (logged in location history as
+    changed by "system"). Registering any further room later needs no
+    such rewrite — names are already included.
   - Room ids can't contain a hyphen — `location_code` is
     `room-aisle-bank-shelf`, hyphen-delimited, so a hyphen inside the room
     id itself would make the format ambiguous to parse back apart. Use an
@@ -225,8 +240,8 @@ decision is made that a future reader would otherwise have to guess at.
   been wanted yet. Don't build this without it being explicitly asked for.
 - No CSV import, no email/SMS alerts.
 - The warehouse location picker (item form) only ever edits the default
-  room — there's no room selector in the UI yet, since only one room
-  (`gm_down`) has a layout defined. A location in some other room would
+  room — there's no room selector in the UI yet; that's needed once
+  `gm_up` gets aisles (until then only `gm_down` has a layout). A location in some other room would
   still save/display fine (via `location`/`location_code`), it just
   wouldn't be reachable from the picker's dropdowns; it'd open in "Custom"
   mode showing the plain text instead.

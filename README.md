@@ -186,9 +186,10 @@ Once you're logged in as an admin, you can add further users from the
     The floor plan is generated as plain SVG on the server from the real
     building layout (`app/warehouse.py`, `app/floorplan.py`) — no images,
     nothing to cache, effectively free to render. Only one room
-    (`GM-Down`) has a floor plan defined today; the layout is written so a
-    second room is just a new entry in `warehouse.py`'s `ROOMS`, not a
-    rewrite — see NOTES.md.
+    (`GM-Down`) has a floor plan defined today; `GM-Up` (the upstairs
+    floor, aisles numbered from 20) is registered but still empty. Adding
+    a room is just an entry in `warehouse.py`'s `ROOMS`, not a rewrite —
+    see NOTES.md.
 - **Maintenance records** — a service history log (date, type, cost, meter
   reading, next due date/meter reading, performed by). Logging a record
   also feeds its meter reading into the equipment's meter history. The

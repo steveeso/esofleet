@@ -75,6 +75,17 @@ ROOMS = {
             {"aisles": {"W": "06", "E": "07"}, "x": (4.7675, 5.4025), "y": (6.28, 11.7664), "banks": 3, "dir": "NS"},
         ],
     },
+    # Upstairs, same facility. Aisle numbers deliberately start at 20 (not
+    # 01) so no aisle number repeats across floors -- a bare "Aisle 23"
+    # identifies the floor on its own, and 11-19 stay free for GM-Down to
+    # grow. No building outline or structures yet: until they're measured
+    # and added there are no valid aisles here, so nothing can be assigned
+    # to this room and its floor plan is never rendered.
+    "gm_up": {
+        "label": "GM-Up",
+        "building": {"outline": [], "wall_labels": [], "doors": []},
+        "structures": [],
+    },
 }
 
 _CODE_RE = re.compile(r"^([a-z0-9_]+)-(\d{2})-([A-E])-([1-9][0-9]?)$")
