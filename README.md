@@ -16,6 +16,22 @@ that exact shelf highlighted, plus a side view of the shelving unit
 highlighting which shelf. See **Where a part lives** under
 [What's included](#6-whats-included) below.
 
+> **This is built around one specific site.** The warehouse support isn't
+> generic: `app/warehouse.py` hard-codes two real rooms ("GM-Down" and
+> "GM-Up" — the downstairs and upstairs parts rooms at one facility), with
+> wall outlines, doors, and shelf positions measured from that building's
+> actual floor plan, and the Aisle/Bank/Shelf numbering reflects how those
+> shelves are physically labeled. The Parts Catalog's stock lookups
+> (Bytown Diesel and NAPA ProLink) are likewise specific to the suppliers
+> used there. If you want to use EsoFleet for your own shop, expect to
+> replace the rooms in `warehouse.py` with your own layout (see
+> NOTES.md's *Warehouse layout and floor plan rendering* section for how
+> that data is structured), and to swap or drop the supplier lookups. The
+> rest of the app — equipment, the shared Parts Catalog, maintenance
+> records, multiple logins — is not site-specific. If you'd rather not map
+> out a floor plan at all, a part's location can simply be set to
+> **Custom** free text and the floor plan features go unused.
+
 Required/scheduled maintenance (due dates, overdue/due-soon tracking) is on
 hold for now; the current focus is this persistent reference info. The
 underlying maintenance-records log and due-date fields still exist in the
