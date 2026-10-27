@@ -344,6 +344,7 @@ def get_linked_tree(db, equipment_id):
             JOIN equipment ON equipment.id = equipment_catalog_items.equipment_id
             WHERE equipment_catalog_items.catalog_item_id IN ({item_placeholders})
               AND equipment_catalog_items.equipment_id != ?
+              AND equipment.status != 'retired'
             ORDER BY equipment.unit_number""",
         item_ids + [equipment_id],
     ).fetchall()
@@ -400,6 +401,7 @@ def index():
                     FROM equipment_catalog_items
                     JOIN equipment ON equipment.id = equipment_catalog_items.equipment_id
                     WHERE equipment_catalog_items.catalog_item_id IN ({item_placeholders})
+                      AND equipment.status != 'retired'
                     ORDER BY equipment.unit_number""",
                 item_ids,
             ).fetchall()
@@ -467,6 +469,7 @@ def _build_parts_list_rows(db):
                 FROM equipment_catalog_items
                 JOIN equipment ON equipment.id = equipment_catalog_items.equipment_id
                 WHERE equipment_catalog_items.catalog_item_id IN ({placeholders})
+                  AND equipment.status != 'retired'
                 ORDER BY equipment.unit_number""",
             item_ids,
         ).fetchall()
@@ -508,7 +511,9 @@ def _build_parts_list_rows(db):
 
     all_units = [
         row["unit_number"]
-        for row in db.execute("SELECT unit_number FROM equipment ORDER BY unit_number").fetchall()
+        for row in db.execute(
+            "SELECT unit_number FROM equipment WHERE status != 'retired' ORDER BY unit_number"
+        ).fetchall()
     ]
 
     sort = request.args.get("sort", DEFAULT_PARTS_LIST_SORT)
@@ -894,11 +899,12 @@ def item_detail(item_id):
     ).fetchall()
 
     used_by = db.execute(
-        """SELECT equipment.id AS equipment_id, equipment.unit_number AS unit_number
+        """SELECT equipment.id AS equipment_id, equipment.unit_number AS unit_number,
+                  equipment.status AS status
            FROM equipment_catalog_items
            JOIN equipment ON equipment.id = equipment_catalog_items.equipment_id
            WHERE equipment_catalog_items.catalog_item_id = ?
-           ORDER BY equipment.unit_number""",
+           ORDER BY equipment.status = 'retired', equipment.unit_number""",
         (item_id,),
     ).fetchall()
 

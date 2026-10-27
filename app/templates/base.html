@@ -25,7 +25,7 @@
       </div>
       <nav id="sidebar-nav">
         <a href="{{ url_for('dashboard.index') }}" class="{{ 'active' if request.endpoint == 'dashboard.index' }}">Dashboard</a>
-        <a href="{{ url_for('equipment.list_equipment') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('equipment.') and request.endpoint != 'equipment.table' }}">Equipment</a>
+        <a href="{{ url_for('equipment.list_equipment') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('equipment.') and request.endpoint not in ('equipment.table', 'equipment.retired') }}">Equipment</a>
         <a href="{{ url_for('catalog.parts_list') }}" class="{{ 'active' if request.endpoint == 'catalog.parts_list' }}">Parts List</a>
         <a href="{{ url_for('equipment.table') }}" class="{{ 'active' if request.endpoint == 'equipment.table' }}">Equipment Table</a>
         <a href="{{ url_for('catalog.inventory_audit') }}" class="{{ 'active' if request.endpoint == 'catalog.inventory_audit' }}">Inventory Audit</a>
@@ -34,6 +34,7 @@
         {% if g.user and g.user['role'] == 'admin' %}
         <a href="{{ url_for('users.list_users') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith(('users.', 'backup.')) }}">Users</a>
         {% endif %}
+        <a href="{{ url_for('equipment.retired') }}" class="nav-secondary {{ 'active' if request.endpoint == 'equipment.retired' }}">Retired Units</a>
       </nav>
       {% if g.user %}
       <div class="sidebar-footer">

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Retired Units{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Retired Units</h1>
+    <div class="subtitle">{{ units|length }} unit{{ '' if units|length == 1 else 's' }} · hidden from the dashboard, equipment lists and parts counts</div>
+  </div>
+  {% if units %}
+  <div class="actions">
+    <a href="{{ url_for('equipment.export_csv', status='retired') }}" class="btn">Export CSV</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="panel">
+  {% if units %}
+  <div class="table-scroll">
+  <table class="sticky-col-1">
+    <thead>
+      <tr>
+        <th>Unit</th>
+        <th>Equipment</th>
+        <th>Filters</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for unit in units %}
+      <tr>
+        <td class="mono"><a href="{{ url_for('equipment.detail', equipment_id=unit['id']) }}">{{ unit['unit_number'] }}</a></td>
+        <td>
+          <a href="{{ url_for('equipment.detail', equipment_id=unit['id']) }}">{{ unit['year'] or '' }} {{ unit['make'] }} {{ unit['model'] }}</a>
+          {% if unit['notes'] %}<div class="alt-notes">{{ unit['notes'] }}</div>{% endif %}
+        </td>
+        <td>
+          {% for part in parts_by_unit.get(unit['id'], []) %}
+          <div class="retired-part"><span class="retired-part-type">{{ part['category'] }}</span> <a class="mono" href="{{ url_for('catalog.item_detail', item_id=part['item_id']) }}">{{ part['value'] or part['label'] }}</a></div>
+          {% else %}
+          <span class="alt-notes">No filters linked</span>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h3>No retired units</h3>
+    <div>Set a unit's status to Retired from its Edit Equipment screen to move it here.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

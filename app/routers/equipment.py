@@ -27,7 +27,13 @@ SORT_COLUMNS = {
 }
 DEFAULT_SORT = "unit"
 
-STATUSES = ["active", "repair_required", "urgent_repair_required", "out_of_service"]
+FLEET_STATUSES = ["active", "repair_required", "urgent_repair_required", "out_of_service"]
+# Retired units keep their records (and filter links, for reference) but are
+# left out of every fleet-wide list -- dashboard, Equipment list and table,
+# CSV export, Parts List unit counts -- and shown on the Retired Units page
+# instead.
+RETIRED = "retired"
+STATUSES = FLEET_STATUSES + [RETIRED]
 METER_TYPES = ["kilometers", "hours", "miles"]
 FUEL_TYPES = ["gasoline", "diesel", "propane", "electric", "other"]
 # Not enforced in the database — expected to grow over time.
@@ -98,6 +104,15 @@ TABLE_SORT_COLUMNS = {
 TABLE_DEFAULT_SORT = "unit"
 
 
+def _status_filter(query, params, status):
+    """An explicit ?status= filter matches exactly (so status=retired still
+    works, e.g. to export just the retired units); with no filter, retired
+    units are left out like everywhere else in the fleet views."""
+    if status:
+        return query + " AND status = ?", params + [status]
+    return query + " AND status != ?", params + [RETIRED]
+
+
 @bp.route("/table")
 @login_required
 def table():
@@ -114,7 +129,8 @@ def table():
         direction = "asc"
 
     items = db.execute(
-        f"SELECT * FROM equipment ORDER BY {TABLE_SORT_COLUMNS[sort]} {direction.upper()}"
+        f"SELECT * FROM equipment WHERE status != ? ORDER BY {TABLE_SORT_COLUMNS[sort]} {direction.upper()}",
+        (RETIRED,),
     ).fetchall()
 
     return render_template(
@@ -148,10 +164,7 @@ def list_equipment():
         like = f"%{q}%"
         params += [like] * 6
 
-    if status:
-        query += " AND status = ?"
-        params.append(status)
-
+    query, params = _status_filter(query, params, status)
     query += f" ORDER BY {SORT_COLUMNS[sort]} {direction.upper()}"
 
     items = db.execute(query, params).fetchall()
@@ -161,7 +174,7 @@ def list_equipment():
         items=items,
         q=q,
         status=status,
-        statuses=STATUSES,
+        statuses=FLEET_STATUSES,
         sort=sort,
         dir=direction,
     )
@@ -197,10 +210,7 @@ def export_csv():
         like = f"%{q}%"
         params += [like] * 6
 
-    if status:
-        query += " AND status = ?"
-        params.append(status)
-
+    query, params = _status_filter(query, params, status)
     query += f" ORDER BY {TABLE_SORT_COLUMNS[sort]} {direction.upper()}"
     items = db.execute(query, params).fetchall()
 
@@ -305,7 +315,9 @@ def decode_vin_review(equipment_id):
 @permission_required("equipment.edit")
 def decode_vins_batch_review():
     db = get_db()
-    items = db.execute("SELECT * FROM equipment ORDER BY unit_number").fetchall()
+    items = db.execute(
+        "SELECT * FROM equipment WHERE status != ? ORDER BY unit_number", (RETIRED,)
+    ).fetchall()
 
     eligible = []
     skipped_not_vin = []
@@ -797,6 +809,38 @@ def _meter_chart(readings):
         "min": lo,
         "max": hi,
     }
+
+
+@bp.route("/retired")
+@login_required
+def retired():
+    """Every retired unit with the filters it was linked to, so an old
+    unit's parts can still be looked up after it's gone from the fleet
+    views."""
+    db = get_db()
+    units = db.execute(
+        "SELECT * FROM equipment WHERE status = ? ORDER BY unit_number", (RETIRED,)
+    ).fetchall()
+
+    parts_by_unit = {}
+    if units:
+        unit_ids = [u["id"] for u in units]
+        placeholders = ",".join("?" * len(unit_ids))
+        rows = db.execute(
+            f"""SELECT equipment_catalog_items.equipment_id AS equipment_id,
+                       catalog_items.id AS item_id, catalog_items.value AS value,
+                       catalog_items.label AS label, catalog_categories.name AS category
+                FROM equipment_catalog_items
+                JOIN catalog_items ON catalog_items.id = equipment_catalog_items.catalog_item_id
+                JOIN catalog_categories ON catalog_categories.id = catalog_items.category_id
+                WHERE equipment_catalog_items.equipment_id IN ({placeholders})
+                ORDER BY catalog_categories.sort_order, catalog_categories.name, catalog_items.value""",
+            unit_ids,
+        ).fetchall()
+        for row in rows:
+            parts_by_unit.setdefault(row["equipment_id"], []).append(row)
+
+    return render_template("equipment/retired.html", units=units, parts_by_unit=parts_by_unit)
 
 
 @bp.route("/<int:equipment_id>")

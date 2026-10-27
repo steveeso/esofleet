@@ -160,6 +160,11 @@ Once you're logged in as an admin, you can add further users from the
     Weight" or "Snowplow Capable") for anything the built-in fields don't
     cover — add, edit, or remove them from the same screen; they show up
     alongside the built-in fields on the item's detail page.
+- **Retired Units** — set a unit's status to **Retired** to take it out of
+  the dashboard, Equipment list and table, CSV export, and Parts List / Parts
+  Catalog unit counts without deleting it. Retired units, with the filters
+  they were linked to, are listed on the Retired Units page at the bottom of
+  the sidebar; a part's detail page still lists them, marked "(retired)".
 - **Equipment detail** — a single page with a small left-hand nav to jump
   between its three sections:
   - **Equipment Info** — the fields above, plus a meter history chart and

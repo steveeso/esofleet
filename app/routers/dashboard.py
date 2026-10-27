@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request
 
 from ..db import get_db
 from .auth import login_required
-from .equipment import STATUSES
+from .equipment import FLEET_STATUSES, RETIRED
 
 bp = Blueprint("dashboard", __name__)
 
@@ -73,7 +73,8 @@ def index():
         direction = "asc"
 
     all_items = db.execute(
-        f"SELECT * FROM equipment ORDER BY {SORT_COLUMNS[sort]} {direction.upper()}"
+        f"SELECT * FROM equipment WHERE status != ? ORDER BY {SORT_COLUMNS[sort]} {direction.upper()}",
+        (RETIRED,),
     ).fetchall()
 
     # Tab counts always reflect the whole fleet, regardless of which tab is
@@ -98,7 +99,7 @@ def index():
         counts[item["status"]] = counts.get(item["status"], 0) + 1
 
     status_filter = request.args.get("status", "")
-    if status_filter not in STATUSES:
+    if status_filter not in FLEET_STATUSES:
         status_filter = ""
     if status_filter:
         items = [i for i in type_filtered if i["status"] == status_filter]

@@ -7,7 +7,7 @@
 <div class="page-header">
   <div>
     <h1>{{ item['unit_number'] }} — {% if 'year' in enabled_fields %}{{ item['year'] }} {% endif %}{{ item['make'] }} {{ item['model'] }}</h1>
-    <div class="subtitle"><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|title }}</span></div>
+    <div class="subtitle"><span class="status {{ item['status'] }}"><span class="dot"></span>{{ item['status']|replace('_', ' ')|title }}</span>{% if item['status'] == 'retired' %} · hidden from fleet lists · <a href="{{ url_for('equipment.retired') }}">All retired units</a>{% endif %}</div>
   </div>
   <div class="actions">
     {% if 'serial_number' in enabled_fields and can('equipment.edit') %}
