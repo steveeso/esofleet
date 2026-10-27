@@ -231,6 +231,12 @@ Once you're logged in as an admin, you can add further users from the
   permissions per role on the **Roles & permissions** tab, add custom roles, or
   give one user an exception (allow or deny) on their own page. Everyone signed
   in can view everything; the built-in `admin` role always has full access.
+- **Backup (admin only)** — a tab next to Users and Roles. Download the whole
+  database as a `.sqlite` file (a consistent copy, safe to take while people
+  are using the app), export every table as CSVs in a ZIP for Excel
+  (password hashes left out), or save a snapshot on the server in
+  `instance/backups/` before a risky change. Restoring is a manual
+  stop-the-server, swap-the-file step on purpose; the page explains how.
 
 ## 7. Notes on this being a proof of concept
 
@@ -249,7 +255,7 @@ Once you're logged in as an admin, you can add further users from the
   properly production-grade, it should run behind a real WSGI server
   (e.g. gunicorn) instead.
 - **Database file** lives at `instance/fleet.sqlite`. Back it up before any
-  risky changes — there's no undo for deletions yet.
+  risky changes (Users → Backup does this from the browser) — there's no undo for deletions yet.
 - **Schema changes are additive.** `schema.sql` only ever creates tables
   (`CREATE TABLE IF NOT EXISTS`); anything that can't be expressed that way
   (e.g. replacing an old table with a new one) goes through a small,

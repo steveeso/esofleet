@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Backup · Users{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Backup</h1>
+    <div class="subtitle">The whole {{ app_name }} database is {{ db_size|filesize }}.</div>
+  </div>
+</div>
+
+{% set active = 'backup' %}
+{% include "users/_tabs.html" %}
+
+<div class="backup-grid">
+  <div class="panel backup-card">
+    <h2 class="section-title">Download a backup</h2>
+    <p>A complete copy of the database: every unit, part, supplier, user and setting. Keep it somewhere other than this computer (a USB stick, cloud drive).</p>
+    <form method="post" action="{{ url_for('backup.download') }}">
+      <button type="submit" class="btn btn-primary">Download database (.sqlite)</button>
+    </form>
+  </div>
+
+  <div class="panel backup-card">
+    <h2 class="section-title">Export to spreadsheets</h2>
+    <p>Every table as its own CSV file, zipped, for opening in Excel. Passwords are left out. Use this to read the data, not to restore it.</p>
+    <form method="post" action="{{ url_for('backup.export_csv') }}">
+      <button type="submit" class="btn">Export all tables (.zip)</button>
+    </form>
+  </div>
+</div>
+
+<div class="section-header" style="margin-top: 28px;">
+  <h2 class="section-title">Snapshots on this server</h2>
+  <form method="post" action="{{ url_for('backup.create_snapshot') }}">
+    <button type="submit" class="btn btn-sm btn-primary">+ Save snapshot now</button>
+  </form>
+</div>
+<p class="section-hint" style="margin-top: 0;">Handy before a big import or edit. They're saved next to the live database, so they won't survive the computer itself failing &mdash; download one for that.</p>
+<div class="panel">
+  {% if snapshots %}
+  <div class="table-scroll">
+  <table class="backup-snapshots">
+    <thead><tr><th>Snapshot</th><th>Saved</th><th>Size</th><th></th></tr></thead>
+    <tbody>
+      {% for s in snapshots %}
+      <tr>
+        <td class="mono">{{ s['name'] }}</td>
+        <td>{{ s['created'].strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ s['size']|filesize }}</td>
+        <td class="backup-actions">
+          <a href="{{ url_for('backup.download_snapshot', name=s['name']) }}" class="btn btn-sm">Download</a>
+          <form method="post" action="{{ url_for('backup.delete_snapshot', name=s['name']) }}"
+                onsubmit='return confirm({{ ("Delete snapshot " ~ s["name"] ~ "? This can't be undone.")|tojson }});'>
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><h3>No snapshots yet</h3></div>
+  {% endif %}
+</div>
+
+<details class="panel backup-restore">
+  <summary class="section-title">How to restore a backup</summary>
+  <ol>
+    <li>Stop the server (see the README).</li>
+    <li>Rename <span class="mono">instance/fleet.sqlite</span> to something like <span class="mono">fleet.sqlite.old</span> &mdash; don't delete it yet.</li>
+    <li>Copy the backup file into <span class="mono">instance/</span> and rename it <span class="mono">fleet.sqlite</span>.</li>
+    <li>Start the server again and check things look right.</li>
+  </ol>
+  <p>Restoring isn't a button here on purpose: overwriting the live database from a browser is too easy to do by accident.</p>
+</details>
+
+<details class="panel backup-restore">
+  <summary class="section-title">What's in the database</summary>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+    <tbody>
+      {% for t in tables %}
+      <tr><td class="mono">{{ t['name'] }}</td><td>{{ '{:,}'.format(t['rows']) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
+{% endblock %}

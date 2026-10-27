@@ -911,3 +911,20 @@ a.tag:hover { text-decoration: none; background: #E0E2EC; }
   .tap-link { display: inline-block; padding: 6px 0; font-size: 16px; }
   .filter-bar .search-clear-wrap, .filter-bar input[type="text"] { width: 100%; max-width: none; }
 }
+
+/* Backup (admin) */
+.backup-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.backup-card { padding: 20px; display: flex; flex-direction: column; }
+.backup-card p { color: var(--color-ink-muted); font-size: 14px; margin: 8px 0 16px; flex: 1; }
+.backup-actions { display: flex; gap: 6px; justify-content: flex-end; white-space: nowrap; }
+.backup-restore { margin-top: 20px; padding: 16px 20px; }
+.backup-restore summary { cursor: pointer; }
+.backup-restore ol, .backup-restore p { font-size: 14px; color: var(--color-ink-muted); }
+.backup-restore table { margin-top: 12px; }
+
+@media (max-width: 560px) {
+  .backup-grid { grid-template-columns: 1fr; }
+  .backup-snapshots th:nth-child(3), .backup-snapshots td:nth-child(3) { display: none; }
+  .backup-snapshots td:first-child { word-break: break-all; }
+  .backup-actions { flex-direction: column; align-items: stretch; }
+}

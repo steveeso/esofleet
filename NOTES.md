@@ -231,6 +231,19 @@ decision is made that a future reader would otherwise have to guess at.
   can never leave the auth tables missing; before this, new tables only
   appeared after running `flask init-db` by hand.
 
+## Backups
+
+- The Backup page (`routers/backup.py`) is admin-only via
+  `@admin_required`, not a grantable permission, for the same reason as
+  user management: a backup holds every password hash.
+- Copies are made with SQLite's backup API, never by copying the file,
+  because a file copy taken mid-write can be corrupt.
+- Snapshot filenames must match `SNAPSHOT_RE` before they're served or
+  deleted. That's the only thing stopping a crafted name from reaching
+  outside `instance/backups/`, so keep the check if this is ever extended.
+- There's no restore button, deliberately: one misclick would replace the
+  live data. Restoring is documented on the page itself.
+
 ## Known gaps (not yet built, on purpose)
 
 - Admins can reset any user's password, but there's no self-service password

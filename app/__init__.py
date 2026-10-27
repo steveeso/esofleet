@@ -25,6 +25,8 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("FLEET_SECRET_KEY", "dev-secret-change-me"),
         DATABASE=os.path.join(app.instance_path, "fleet.sqlite"),
+        # Server-side snapshots from the Backup page (admin only).
+        BACKUP_DIR=os.path.join(app.instance_path, "backups"),
     )
 
     if test_config:
@@ -41,6 +43,7 @@ def create_app(test_config=None):
         db.init_db()
 
     app_env = _environment(app)
+    app.config["FLEET_ENV"] = app_env
 
     @app.context_processor
     def inject_environment():
@@ -69,7 +72,7 @@ def create_app(test_config=None):
             return "1 day ago"
         return f"{delta} days ago"
 
-    from .routers import auth, catalog, dashboard, equipment, maintenance, suppliers, users
+    from .routers import auth, backup, catalog, dashboard, equipment, maintenance, suppliers, users
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(dashboard.bp)
@@ -78,5 +81,6 @@ def create_app(test_config=None):
     app.register_blueprint(catalog.bp)
     app.register_blueprint(suppliers.bp)
     app.register_blueprint(users.bp)
+    app.register_blueprint(backup.bp)
 
     return app

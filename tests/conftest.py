@@ -7,7 +7,11 @@ from app.db import get_db
 
 @pytest.fixture
 def app(tmp_path):
-    app = create_app({"TESTING": True, "DATABASE": str(tmp_path / "fleet.sqlite")})
+    app = create_app({
+        "TESTING": True,
+        "DATABASE": str(tmp_path / "fleet.sqlite"),
+        "BACKUP_DIR": str(tmp_path / "backups"),
+    })
     with app.app_context():
         db = get_db()
         for username, role in (("admin", "admin"), ("editor", "editor"), ("viewer", "viewer")):
