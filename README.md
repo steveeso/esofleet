@@ -230,6 +230,21 @@ Once you're logged in as an admin, you can add further users from the
   by default, still on file); each one records who last edited it and
   when. Editing needs the **Add & edit suppliers** permission (given to
   editors by default; viewers are read-only).
+- **Pick List** — everyone's own "shopping cart" of parts to pull. Add parts
+  with the **+** beside each part number on the Parts List, the **+ Pick list**
+  button (with a quantity) on a part's page, or **+ All to pick list** on a
+  unit's Maintenance Info (that unit's parts, in the quantity it takes).
+  The Pick List page shows just part number, location and quantity, sorted
+  by shelf so you can walk it in order, and prints cleanly. **Clear list**
+  has a "Remove these from inventory" checkbox (needs the stock-count
+  permission) that subtracts each quantity from the part's count on hand;
+  counts never go below zero, and parts that were never counted are left
+  alone.
+- **Reports** — anyone can send a problem or request to the admins ("this
+  filter is wrong", "order more of these") with **Report a problem** on a
+  part or unit page, or from the Reports page. Admins get a red count in the
+  nav and can mark each one resolved with an optional reply; the sender sees
+  the reply under Reports → Resolved.
 - **Users (admin only)** — add/remove logins, reset passwords, and set each
   user's role. A user's role decides what they can do (add/edit/delete/import
   equipment, parts, maintenance, and stock counts), and an admin can tick those
@@ -284,7 +299,7 @@ EsoFleet/
     seed.py            # sample data generator
     warehouse.py       # canonical warehouse room/aisle/bank layout + location codes
     floorplan.py       # renders warehouse.py's layout as inline SVG
-    routers/           # route handlers (auth, catalog, dashboard, equipment, maintenance, suppliers, users)
+    routers/           # route handlers (auth, backup, catalog, dashboard, equipment, maintenance, picklist, reports, suppliers, users)
     templates/         # Jinja2 HTML templates
     static/css/        # stylesheet
   tests/               # pytest suite (pip install -r requirements-dev.txt, then: python -m pytest)

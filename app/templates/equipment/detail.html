@@ -13,6 +13,7 @@
     {% if 'serial_number' in enabled_fields and can('equipment.edit') %}
     <a href="{{ url_for('equipment.decode_vin_review', equipment_id=item['id']) }}" class="btn">Decode VIN</a>
     {% endif %}
+    <a href="{{ url_for('reports.new', equipment=item['id']) }}" class="btn">Report a problem</a>
     {% if can('equipment.edit') %}
     <a href="{{ url_for('equipment.edit', equipment_id=item['id']) }}" class="btn">Edit equipment</a>
     {% endif %}
@@ -88,6 +89,12 @@
       <div class="section-header">
         <h2 class="section-title">Maintenance Info</h2>
         <div class="actions">
+          {% if categories %}
+          <form method="post" action="{{ url_for('picklist.add_unit', equipment_id=item['id']) }}">
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <button type="submit" class="btn btn-sm">+ All to pick list</button>
+          </form>
+          {% endif %}
           <a href="{{ url_for('catalog.index') }}" class="btn btn-sm">Browse catalog</a>
           {% if can('equipment.edit') %}
           <a href="{{ url_for('equipment.link_catalog_item', equipment_id=item['id']) }}" class="btn btn-sm btn-primary">+ Link item</a>

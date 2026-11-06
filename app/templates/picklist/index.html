@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Pick list{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Pick list</h1>
+    <div class="subtitle">{{ rows|length }} part{{ '' if rows|length == 1 else 's' }} · sorted by shelf, so you can walk it in order</div>
+  </div>
+  {% if rows %}
+  <div class="actions no-print">
+    <button type="button" class="btn" onclick="window.print()">Print</button>
+  </div>
+  {% endif %}
+</div>
+
+<div class="panel">
+  {% if rows %}
+  <table class="pick-table">
+    <thead>
+      <tr><th>Part number</th><th>Location</th><th class="pick-qty-col">Qty</th><th class="no-print"></th></tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="mono pick-part">
+          <a href="{{ url_for('catalog.item_detail', item_id=r['catalog_item_id']) }}">{{ r['part_number'] }}</a>
+          <div class="pick-type">{{ r['type_name'] }}</div>
+        </td>
+        <td>{{ r['location'] or '—' }}</td>
+        <td class="pick-qty-col">
+          <form method="post" action="{{ url_for('picklist.set_quantity', item_id=r['catalog_item_id']) }}" class="pick-qty-form">
+            <input type="number" name="quantity" value="{{ r['quantity'] }}" min="1" max="999" inputmode="numeric" aria-label="Quantity of {{ r['part_number'] }}">
+            <span class="pick-qty-print">{{ r['quantity'] }}</span>
+          </form>
+        </td>
+        <td class="no-print pick-remove-col">
+          <form method="post" action="{{ url_for('picklist.remove', item_id=r['catalog_item_id']) }}">
+            <button type="submit" class="btn btn-sm" aria-label="Remove {{ r['part_number'] }} from the list" title="Remove from list">&times;</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <h3>Your pick list is empty</h3>
+    <div>Add parts from the <a href="{{ url_for('catalog.parts_list') }}">Parts List</a>, a part's page, or a unit's page.</div>
+  </div>
+  {% endif %}
+</div>
+
+{% if rows %}
+<form method="post" action="{{ url_for('picklist.clear') }}" class="panel pick-clear no-print" id="pick-clear-form">
+  {% if can('inventory.edit') %}
+  <label class="flag-checkbox pick-clear-check">
+    <input type="checkbox" name="remove_from_inventory" value="1" id="remove-from-inventory">
+    Remove these from inventory (subtract each quantity from its count on hand)
+  </label>
+  {% else %}
+  <div class="field-hint">Clearing just empties your list. Removing parts from the stock count needs the "Edit stock counts" permission.</div>
+  {% endif %}
+  <button type="submit" class="btn btn-danger">Clear list</button>
+</form>
+{% endif %}
+
+<script>
+(function() {
+  // Quantities save as soon as they're changed, no Save button.
+  document.querySelectorAll('.pick-qty-form').forEach(function(form) {
+    var input = form.querySelector('input');
+    form.addEventListener('submit', function(e) { e.preventDefault(); input.blur(); });
+    input.addEventListener('change', function() {
+      fetch(form.action, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'fetch'},
+        body: new FormData(form)
+      }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.ok) {
+          input.value = data.quantity;
+          form.querySelector('.pick-qty-print').textContent = data.quantity;
+          input.classList.add('saved');
+          setTimeout(function() { input.classList.remove('saved'); }, 800);
+        }
+      }).catch(function() { form.submit(); });
+    });
+  });
+
+  var clearForm = document.getElementById('pick-clear-form');
+  if (clearForm) {
+    clearForm.addEventListener('submit', function(e) {
+      var box = document.getElementById('remove-from-inventory');
+      var msg = box && box.checked
+        ? 'Clear the list AND subtract these quantities from inventory?'
+        : 'Clear the list? Inventory counts won’t change.';
+      if (!confirm(msg)) e.preventDefault();
+    });
+  }
+})();
+</script>
+{% endblock %}

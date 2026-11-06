@@ -72,7 +72,7 @@ def create_app(test_config=None):
             return "1 day ago"
         return f"{delta} days ago"
 
-    from .routers import auth, backup, catalog, dashboard, equipment, maintenance, suppliers, users
+    from .routers import auth, backup, catalog, picklist, reports, dashboard, equipment, maintenance, suppliers, users
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(dashboard.bp)
@@ -82,5 +82,7 @@ def create_app(test_config=None):
     app.register_blueprint(suppliers.bp)
     app.register_blueprint(users.bp)
     app.register_blueprint(backup.bp)
+    app.register_blueprint(picklist.bp)
+    app.register_blueprint(reports.bp)
 
     return app

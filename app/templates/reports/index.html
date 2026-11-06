@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Reports</h1>
+    <div class="subtitle">{{ 'Problems and requests sent in by everyone' if is_admin else 'Problems and requests you’ve sent to the admins' }}</div>
+  </div>
+  <div class="actions">
+    <a href="{{ url_for('reports.new') }}" class="btn btn-primary">+ Report a problem</a>
+  </div>
+</div>
+
+<div class="type-tabs">
+  <a href="{{ url_for('reports.index', status='open') }}" class="type-tab {{ 'active' if status == 'open' }}">Open <span class="count">{{ counts['open'] }}</span></a>
+  <a href="{{ url_for('reports.index', status='resolved') }}" class="type-tab {{ 'active' if status == 'resolved' }}">Resolved <span class="count">{{ counts['resolved'] }}</span></a>
+</div>
+
+<div class="panel">
+  {% if rows %}
+  <ul class="report-list">
+    {% for r in rows %}
+    <li class="report-card">
+      <div class="report-head">
+        <span class="status {{ 'urgent_repair_required' if r['kind'] == 'reorder' else ('out_of_service' if r['kind'] == 'problem' else 'neutral') }}"><span class="dot"></span>{{ kind_labels.get(r['kind'], r['kind']) }}</span>
+        {% if r['catalog_item_id'] %}<a href="{{ url_for('catalog.item_detail', item_id=r['catalog_item_id']) }}" class="mono">{{ r['part_number'] }}</a>{% endif %}
+        {% if r['equipment_id'] %}<a href="{{ url_for('equipment.detail', equipment_id=r['equipment_id']) }}">{{ r['unit_number'] }}</a>{% endif %}
+        <span class="report-meta">{{ r['created_by'] or 'someone' }} · {{ r['created_at'] }} UTC</span>
+      </div>
+      <div class="report-message pre-line">{{ r['message'] }}</div>
+      {% if r['status'] == 'resolved' %}
+      <div class="report-reply">
+        <strong>Resolved by {{ r['resolved_by'] or 'an admin' }}</strong> · {{ r['resolved_at'] }} UTC
+        {% if r['admin_reply'] %}<div class="pre-line">{{ r['admin_reply'] }}</div>{% endif %}
+      </div>
+      {% endif %}
+      {% if is_admin %}
+      {% if r['status'] == 'open' %}
+      <form method="post" action="{{ url_for('reports.resolve', report_id=r['id']) }}" class="report-resolve">
+        <input type="text" name="admin_reply" placeholder="Reply (optional), e.g. Ordered 6 from Bytown" aria-label="Reply">
+        <button type="submit" class="btn btn-sm btn-primary">Mark resolved</button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('reports.reopen', report_id=r['id']) }}" class="report-resolve">
+        <button type="submit" class="btn btn-sm">Reopen</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty-state">
+    <h3>{{ 'Nothing open' if status == 'open' else 'Nothing resolved yet' }}</h3>
+    <div>{{ 'All caught up.' if is_admin and status == 'open' else 'Use “Report a problem” on any part or unit page.' }}</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

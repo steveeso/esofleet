@@ -301,3 +301,39 @@ CREATE TABLE IF NOT EXISTS supplier_brands (
 CREATE INDEX IF NOT EXISTS idx_suppliers_active ON suppliers(is_active);
 CREATE INDEX IF NOT EXISTS idx_supplier_category_links_category ON supplier_category_links(category_id);
 CREATE INDEX IF NOT EXISTS idx_supplier_contacts_supplier ON supplier_contacts(supplier_id);
+
+-- Each user's own pick list ("shopping cart" of parts to pull from the
+-- shelves). One row per part; adding a part already on the list adds to
+-- its quantity. Cleared by the user, optionally subtracting the quantities
+-- from catalog_items.quantity_on_hand.
+CREATE TABLE IF NOT EXISTS pick_list_items (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    catalog_item_id INTEGER NOT NULL REFERENCES catalog_items(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    added_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, catalog_item_id)
+);
+
+-- Problems and requests flagged by anyone for an admin to look at ("this
+-- filter is wrong", "order more of these"). Optionally about one part or
+-- unit; ON DELETE SET NULL so a report outlives the thing it was about.
+-- Usernames are stored as text (like suppliers.updated_by) so a report
+-- still shows who sent it after that user is deleted.
+CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL DEFAULT 'problem',
+    message TEXT NOT NULL,
+    catalog_item_id INTEGER REFERENCES catalog_items(id) ON DELETE SET NULL,
+    equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL,
+    created_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_by TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    status TEXT NOT NULL DEFAULT 'open',
+    resolved_by TEXT,
+    resolved_at TEXT,
+    admin_reply TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pick_list_items_item ON pick_list_items(catalog_item_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
+CREATE INDEX IF NOT EXISTS idx_reports_created_by ON reports(created_by_id);

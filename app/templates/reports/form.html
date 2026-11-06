@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Report a problem{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Report a problem</h1>
+    <div class="subtitle">Goes to the admins. You'll see their reply under <a href="{{ url_for('reports.index') }}">Reports</a>.</div>
+  </div>
+</div>
+
+<form method="post" class="panel" style="padding: 24px; max-width: 640px;">
+  {% if item %}<input type="hidden" name="item" value="{{ item['id'] }}">{% endif %}
+  {% if unit %}<input type="hidden" name="equipment" value="{{ unit['id'] }}">{% endif %}
+
+  {% if item or unit %}
+  <div class="field">
+    <label>About</label>
+    <div class="report-subject">
+      {% if item %}<a href="{{ url_for('catalog.item_detail', item_id=item['id']) }}" class="mono">{{ item['part_number'] }}</a>{% if item['label'] != item['part_number'] %} <span class="field-hint">{{ item['label'] }}</span>{% endif %}{% endif %}
+      {% if unit %}<a href="{{ url_for('equipment.detail', equipment_id=unit['id']) }}">{{ unit['unit_number'] }}</a> <span class="field-hint">{{ unit['make'] }} {{ unit['model'] }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="field" style="margin-top: 16px;">
+    <label>What kind?</label>
+    <div class="checkbox-grid">
+      {% for key, label in kinds %}
+      <label class="checkbox-pill"><input type="radio" name="kind" value="{{ key }}" {{ 'checked' if kind == key }}> {{ label }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="field" style="margin-top: 16px;">
+    <label for="message">Details *</label>
+    <textarea id="message" name="message" rows="4" required
+              placeholder="{{ 'e.g. Down to the last one, order more' if kind == 'reorder' else 'e.g. Wrong part number listed, the one on the truck is a BF7633' }}">{{ message }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Send to admins</button>
+    <a href="{{ url_for('catalog.item_detail', item_id=item['id']) if item else (url_for('equipment.detail', equipment_id=unit['id']) if unit else url_for('reports.index')) }}" class="btn">Cancel</a>
+  </div>
+</form>
+{% endblock %}

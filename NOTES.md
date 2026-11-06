@@ -244,6 +244,27 @@ decision is made that a future reader would otherwise have to guess at.
 - There's no restore button, deliberately: one misclick would replace the
   live data. Restoring is documented on the page itself.
 
+## Pick list and reports
+
+- **Pick lists are per user and stored in the database** (`pick_list_items`),
+  not in the browser session, so a list started on the shop PC is there on
+  your phone in the yard. Adding a part already on the list adds to its
+  quantity rather than making a second row.
+- **"Remove from inventory" only ever subtracts from a real count.** A part
+  whose `quantity_on_hand` is NULL (never counted) is left NULL rather than
+  turned into a negative or made-up number, and a count is clamped at 0 with
+  a "worth a recount" note. It's gated on `inventory.edit`, the same
+  permission as the Inventory Audit page's editor; without it, clearing just
+  empties the list. If someone ticks the box without the permission, the
+  list is kept, so they don't lose it while thinking the stock was updated.
+- **Reports are in-app, not email**, on purpose: there's no outgoing email
+  set up (it would mean storing mail account credentials on the server),
+  and a report is more useful next to the part or unit it's about. Email
+  alerts could be added later as a notification *on top of* this, not a
+  replacement. The inbox is for the `admin` role (like Users), not a
+  grantable permission. A report keeps the sender's username as text and
+  uses ON DELETE SET NULL for the part/unit, so it outlives either.
+
 ## Known gaps (not yet built, on purpose)
 
 - Admins can reset any user's password, but there's no self-service password
