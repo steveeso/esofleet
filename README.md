@@ -165,8 +165,11 @@ Once you're logged in as an admin, you can add further users from the
   Catalog unit counts without deleting it. Retired units, with the filters
   they were linked to, are listed on the Retired Units page at the bottom of
   the sidebar; a part's detail page still lists them, marked "(retired)".
-- **Equipment detail** — a single page with a small left-hand nav to jump
-  between its three sections:
+- **Equipment detail** — opens with a **Maintenance Summary**: one line per
+  linked part or spec, e.g. "Oil filter: PH10890 – Aisle 04, Bank A, Shelf 2"
+  or "Engine oil: 15W-40 – 16.1 L" (primary part number plus where it's
+  shelved, or the quantity this unit takes). Below that, a small left-hand
+  nav jumps between its three sections:
   - **Equipment Info** — the fields above, plus a meter history chart and
     log (every recorded reading is timestamped; the date defaults to today
     but is editable so a reading can be backdated — the equipment's current
@@ -174,7 +177,8 @@ Once you're logged in as an admin, you can add further users from the
     most recent, regardless of entry order);
   - **Maintenance Info** — catalog items linked to this equipment item,
     grouped by category, shown as collapsible sections you expand in
-    place: each item shows its primary value (e.g. "Oil Filter: PN-12345")
+    place (click the part's name to open its own page; click anywhere
+    else on the row to expand or collapse it): each item shows its primary value (e.g. "Oil Filter: PN-12345")
     and, expanded further, an optional **quantity + unit of measure on
     this unit** (decimals allowed — "2" filters, "5.7 liters" of oil,
     "1.25 lb" of refrigerant) plus any alternate part numbers/specs.

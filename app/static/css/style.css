@@ -1011,3 +1011,24 @@ a.tag:hover { text-decoration: none; background: #E0E2EC; }
   .report-meta { margin-left: 0; width: 100%; }
   .pick-add-form input[type="number"] { width: 56px; }
 }
+
+/* Equipment detail: Maintenance Summary panel */
+.glance { padding: 16px 20px; margin-bottom: 24px; }
+.glance .section-title { margin: 0 0 8px 0; }
+.glance-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+.glance-label { font-weight: 600; }
+.glance-value { font-size: 15px; color: var(--color-primary); }
+.glance-sep { color: var(--color-ink-muted); margin: 0 2px; }
+.glance-extra { color: var(--color-ink); }
+
+@media (max-width: 560px) {
+  .glance-list li { padding-bottom: 6px; border-bottom: 1px solid var(--color-border); }
+  .glance-list li:last-child { border-bottom: none; padding-bottom: 0; }
+}
+
+/* A link inside an accordion summary (equipment Maintenance Info): only the
+   text navigates, the rest of the row toggles the box. */
+.acc-link { display: inline-flex; align-items: baseline; gap: 8px; color: var(--color-ink); }
+.acc-link .acc-title { color: var(--color-primary); }
+.acc-link:hover { text-decoration: none; }
+.acc-link:hover .acc-title, .acc-link:hover .mono { text-decoration: underline; }
