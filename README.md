@@ -198,7 +198,8 @@ Once you're logged in as an admin, you can add further users from the
   of any one equipment item, so it can be browsed or extended on its own
   and reused across the fleet. Editing an item or its alternates here (or
   from any equipment item's Maintenance Info) applies everywhere it's
-  linked.
+  linked. Click a part's name to open its own page; click anywhere else
+  on its row to expand or collapse it.
   - **Where a part lives** — a catalog item's Location field is either a
     warehouse shelf position (Aisle → Bank → Shelf, picked from dropdowns)
     or free-form text for anything outside the warehouse (another

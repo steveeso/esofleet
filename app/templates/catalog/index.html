@@ -63,11 +63,15 @@
       {% endfor %}
       {% set item_search = ([catalog_item['label'], catalog_item['value'] or '', catalog_item['notes'] or '', catalog_item['location'] or ''] + alt_text)|join(' ')|lower %}
       {% set item_initial_open = request.args.get('open_item')|string == catalog_item['id']|string %}
-      <details id="item-{{ catalog_item['id'] }}" class="acc-item" data-search="{{ item_search }}" data-initial-open="{{ 'true' if item_initial_open else 'false' }}" data-detail-url="{{ url_for('catalog.item_detail', item_id=catalog_item['id']) }}" {{ 'open' if item_initial_open }}>
+      <details id="item-{{ catalog_item['id'] }}" class="acc-item" data-search="{{ item_search }}" data-initial-open="{{ 'true' if item_initial_open else 'false' }}" {{ 'open' if item_initial_open }}>
         <summary>
           <span class="acc-summary-main">
-            <span class="acc-title">{{ catalog_item['label'] }}</span>
-            {% if catalog_item['value'] %}<span class="mono">{{ catalog_item['value'] }}</span>{% endif %}
+            {# The text is a link to the part's own page; the rest of the
+               box just opens and closes it (same as on an equipment page). #}
+            <a class="acc-link" href="{{ url_for('catalog.item_detail', item_id=catalog_item['id']) }}">
+              <span class="acc-title">{{ catalog_item['label'] }}</span>
+              {% if catalog_item['value'] %}<span class="mono">{{ catalog_item['value'] }}</span>{% endif %}
+            </a>
           </span>
           <span class="acc-meta">{{ alts|length }} alternate{{ '' if alts|length == 1 else 's' }}</span>
         </summary>
@@ -200,20 +204,6 @@
   }
 
   searchInput.addEventListener('input', applyFilter);
-
-  // Clicking an already-open item again (instead of collapsing it) opens
-  // its own page, where every detail lives alongside an Edit button.
-  document.querySelectorAll('.acc-item').forEach(function(item) {
-    var summary = item.querySelector(':scope > summary');
-    var detailUrl = item.dataset.detailUrl;
-    if (!summary || !detailUrl) return;
-    summary.addEventListener('click', function(e) {
-      if (item.open) {
-        e.preventDefault();
-        window.location.href = detailUrl;
-      }
-    });
-  });
 })();
 </script>
 {% endif %}
