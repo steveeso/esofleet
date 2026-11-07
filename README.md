@@ -240,11 +240,12 @@ Once you're logged in as an admin, you can add further users from the
   button (with a quantity) on a part's page, or **+ All to pick list** on a
   unit's Maintenance Info (that unit's parts, in the quantity it takes).
   The Pick List page shows just part number, location and quantity, sorted
-  by shelf so you can walk it in order, and prints cleanly. **Clear list**
-  has a "Remove these from inventory" checkbox (needs the stock-count
-  permission) that subtracts each quantity from the part's count on hand;
-  counts never go below zero, and parts that were never counted are left
-  alone.
+  by shelf so you can walk it in order, and prints cleanly. Every row has a
+  checkbox (ticked by default); **Subtract Selected From Inventory** (needs
+  the stock-count permission) subtracts each ticked quantity from the part's
+  count on hand and takes those parts off the list, while **Clear List**
+  empties the whole list without touching stock. Counts never go below zero,
+  and parts that were never counted are left alone.
 - **Reports** — anyone can send a problem or request to the admins ("this
   filter is wrong", "order more of these") with **Report a problem** on a
   part or unit page, or from the Reports page. Admins get a red count in the

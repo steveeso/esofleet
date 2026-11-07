@@ -983,8 +983,8 @@ a.tag:hover { text-decoration: none; background: #E0E2EC; }
 .pick-qty-form input.saved { border-color: var(--color-green); }
 .pick-qty-print { display: none; }
 .pick-remove-col { width: 48px; text-align: right; }
+.pick-select-col { width: 36px; }
 .pick-clear { margin-top: 16px; padding: 16px 20px; display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-.pick-clear-check { white-space: normal; font-size: 14px; color: var(--color-ink); }
 
 @media print {
   .sidebar, .no-print, .flash { display: none !important; }

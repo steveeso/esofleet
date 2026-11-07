@@ -158,45 +158,67 @@ def remove(item_id):
     return redirect(url_for("picklist.index"))
 
 
+@bp.route("/subtract", methods=("POST",))
+@login_required
+def subtract():
+    """The "I pulled these off the shelf" step: subtract each ticked part's
+    quantity from its count on hand and take those parts off the list. Parts
+    that were never counted are left uncounted rather than guessed at, and a
+    count never goes below zero. Unticked parts stay on the list."""
+    db = get_db()
+    if "inventory.edit" not in g.perms:
+        flash("You don't have permission to change stock counts, so nothing was subtracted "
+              "and your list was kept.", "error")
+        return redirect(url_for("picklist.index"))
+
+    selected = set()
+    for raw in request.form.getlist("item_id"):
+        try:
+            selected.add(int(raw))
+        except ValueError:
+            continue
+    rows = [row for row in _rows(db) if row["catalog_item_id"] in selected]
+    if not rows:
+        flash("Tick at least one part to subtract from inventory.", "error")
+        return redirect(url_for("picklist.index"))
+
+    uncounted, short = [], []
+    for row in rows:
+        on_hand = row["quantity_on_hand"]
+        if on_hand is None:
+            uncounted.append(row["part_number"])
+            continue
+        if row["quantity"] > on_hand:
+            short.append(row["part_number"])
+        db.execute(
+            "UPDATE catalog_items SET quantity_on_hand = ? WHERE id = ?",
+            (max(on_hand - row["quantity"], 0), row["catalog_item_id"]),
+        )
+    db.executemany(
+        "DELETE FROM pick_list_items WHERE user_id = ? AND catalog_item_id = ?",
+        [(g.user["id"], row["catalog_item_id"]) for row in rows],
+    )
+    db.commit()
+
+    subtracted = len(rows) - len(uncounted)
+    if subtracted:
+        message = f"Subtracted {subtracted} part{'' if subtracted == 1 else 's'} from inventory and took them off your list."
+    else:
+        message = f"Took {len(rows)} part{'' if len(rows) == 1 else 's'} off your list; inventory counts are unchanged."
+    if short:
+        message += f" More were picked than on hand for {', '.join(short)}; set to 0 -- worth a recount."
+    if uncounted:
+        message += f" No count on file for {', '.join(uncounted)}, so left as is."
+    flash(message, "success")
+    return redirect(url_for("picklist.index"))
+
+
 @bp.route("/clear", methods=("POST",))
 @login_required
 def clear():
-    """Empty the list. With remove_from_inventory ticked, first subtract each
-    quantity from the part's count on hand -- the "I pulled these off the
-    shelf" step. Parts that were never counted are left uncounted rather
-    than guessed at, and a count never goes below zero."""
+    """Empty the whole list without touching any stock counts."""
     db = get_db()
-    rows = _rows(db)
-    if not rows:
-        return redirect(url_for("picklist.index"))
-
-    if request.form.get("remove_from_inventory"):
-        if "inventory.edit" not in g.perms:
-            flash("You don't have permission to change stock counts, so nothing was removed from inventory "
-                  "and your list was kept.", "error")
-            return redirect(url_for("picklist.index"))
-        uncounted, short = [], []
-        for row in rows:
-            on_hand = row["quantity_on_hand"]
-            if on_hand is None:
-                uncounted.append(row["part_number"])
-                continue
-            if row["quantity"] > on_hand:
-                short.append(row["part_number"])
-            db.execute(
-                "UPDATE catalog_items SET quantity_on_hand = ? WHERE id = ?",
-                (max(on_hand - row["quantity"], 0), row["catalog_item_id"]),
-            )
-        removed = len(rows) - len(uncounted)
-        message = f"Removed {removed} part{'' if removed == 1 else 's'} from inventory and cleared your list."
-        if short:
-            message += f" More were picked than on hand for {', '.join(short)}; set to 0 -- worth a recount."
-        if uncounted:
-            message += f" No count on file for {', '.join(uncounted)}, so left as is."
-        flash(message, "success")
-    else:
-        flash("Cleared your pick list.", "success")
-
     db.execute("DELETE FROM pick_list_items WHERE user_id = ?", (g.user["id"],))
     db.commit()
+    flash("Cleared your pick list.", "success")
     return redirect(url_for("picklist.index"))

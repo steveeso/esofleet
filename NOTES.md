@@ -250,13 +250,16 @@ decision is made that a future reader would otherwise have to guess at.
   not in the browser session, so a list started on the shop PC is there on
   your phone in the yard. Adding a part already on the list adds to its
   quantity rather than making a second row.
-- **"Remove from inventory" only ever subtracts from a real count.** A part
-  whose `quantity_on_hand` is NULL (never counted) is left NULL rather than
-  turned into a negative or made-up number, and a count is clamped at 0 with
-  a "worth a recount" note. It's gated on `inventory.edit`, the same
-  permission as the Inventory Audit page's editor; without it, clearing just
-  empties the list. If someone ticks the box without the permission, the
-  list is kept, so they don't lose it while thinking the stock was updated.
+- **"Subtract Selected From Inventory" only ever subtracts from a real
+  count.** A part whose `quantity_on_hand` is NULL (never counted) is left
+  NULL rather than turned into a negative or made-up number, and a count is
+  clamped at 0 with a "worth a recount" note. It acts on the ticked rows
+  (all ticked by default) and takes just those off the list, so an unticked
+  part stays to be picked later and a double-click can't subtract twice.
+  It's gated on `inventory.edit`, the same permission as the Inventory
+  Audit page's editor; without it the checkboxes and button aren't shown,
+  and a direct POST keeps the list. **Clear List** is separate and never
+  touches stock counts.
 - **Reports are in-app, not email**, on purpose: there's no outgoing email
   set up (it would mean storing mail account credentials on the server),
   and a report is more useful next to the part or unit it's about. Email

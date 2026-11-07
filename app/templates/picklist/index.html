@@ -18,11 +18,24 @@
   {% if rows %}
   <table class="pick-table">
     <thead>
-      <tr><th>Part number</th><th>Location</th><th class="pick-qty-col">Qty</th><th class="no-print"></th></tr>
+      <tr>
+        {% if can('inventory.edit') %}
+        <th class="no-print pick-select-col">
+          <input type="checkbox" id="pick-select-all" checked aria-label="Select all parts">
+        </th>
+        {% endif %}
+        <th>Part number</th><th>Location</th><th class="pick-qty-col">Qty</th><th class="no-print"></th>
+      </tr>
     </thead>
     <tbody>
       {% for r in rows %}
       <tr>
+        {% if can('inventory.edit') %}
+        <td class="no-print pick-select-col">
+          <input type="checkbox" name="item_id" value="{{ r['catalog_item_id'] }}" form="pick-subtract-form" checked
+                 class="pick-select" aria-label="Select {{ r['part_number'] }}">
+        </td>
+        {% endif %}
         <td class="mono pick-part">
           <a href="{{ url_for('catalog.item_detail', item_id=r['catalog_item_id']) }}">{{ r['part_number'] }}</a>
           <div class="pick-type">{{ r['type_name'] }}</div>
@@ -52,17 +65,18 @@
 </div>
 
 {% if rows %}
-<form method="post" action="{{ url_for('picklist.clear') }}" class="panel pick-clear no-print" id="pick-clear-form">
+<div class="panel pick-clear no-print">
   {% if can('inventory.edit') %}
-  <label class="flag-checkbox pick-clear-check">
-    <input type="checkbox" name="remove_from_inventory" value="1" id="remove-from-inventory">
-    Remove these from inventory (subtract each quantity from its count on hand)
-  </label>
+  <form method="post" action="{{ url_for('picklist.subtract') }}" id="pick-subtract-form">
+    <button type="submit" class="btn btn-primary" id="pick-subtract-btn">Subtract Selected From Inventory</button>
+  </form>
   {% else %}
-  <div class="field-hint">Clearing just empties your list. Removing parts from the stock count needs the "Edit stock counts" permission.</div>
+  <div class="field-hint">Subtracting parts from the stock count needs the "Edit stock counts" permission.</div>
   {% endif %}
-  <button type="submit" class="btn btn-danger">Clear list</button>
-</form>
+  <form method="post" action="{{ url_for('picklist.clear') }}" id="pick-clear-form">
+    <button type="submit" class="btn btn-danger">Clear List</button>
+  </form>
+</div>
 {% endif %}
 
 <script>
@@ -90,12 +104,33 @@
   var clearForm = document.getElementById('pick-clear-form');
   if (clearForm) {
     clearForm.addEventListener('submit', function(e) {
-      var box = document.getElementById('remove-from-inventory');
-      var msg = box && box.checked
-        ? 'Clear the list AND subtract these quantities from inventory?'
-        : 'Clear the list? Inventory counts won’t change.';
+      if (!confirm('Clear the whole list? Inventory counts won’t change.')) e.preventDefault();
+    });
+  }
+
+  var subtractForm = document.getElementById('pick-subtract-form');
+  if (subtractForm) {
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('.pick-select'));
+    var selectAll = document.getElementById('pick-select-all');
+    var subtractBtn = document.getElementById('pick-subtract-btn');
+    var syncSelection = function() {
+      var checked = boxes.filter(function(b) { return b.checked; }).length;
+      subtractBtn.disabled = checked === 0;
+      selectAll.checked = checked === boxes.length;
+      selectAll.indeterminate = checked > 0 && checked < boxes.length;
+    };
+    boxes.forEach(function(b) { b.addEventListener('change', syncSelection); });
+    selectAll.addEventListener('change', function() {
+      boxes.forEach(function(b) { b.checked = selectAll.checked; });
+      syncSelection();
+    });
+    subtractForm.addEventListener('submit', function(e) {
+      var n = boxes.filter(function(b) { return b.checked; }).length;
+      var msg = 'Subtract the quantities of ' + n + ' selected part' + (n === 1 ? '' : 's') +
+                ' from inventory and take ' + (n === 1 ? 'it' : 'them') + ' off the list?';
       if (!confirm(msg)) e.preventDefault();
     });
+    syncSelection();
   }
 })();
 </script>

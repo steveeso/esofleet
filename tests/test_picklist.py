@@ -100,25 +100,59 @@ def test_clear_without_removing_from_inventory(app, client):
     assert _on_hand(app)["BT223"] == 5
 
 
-def test_clear_and_remove_from_inventory(app, client):
+def test_subtract_selected_from_inventory(app, client):
     ids, _ = _make_parts(app)
     login(client, "editor")
     client.post("/pick-list/add", data={"item_id": ids["BT223"], "quantity": "2"})
     client.post("/pick-list/add", data={"item_id": ids["P550"], "quantity": "3"})   # only 1 on hand
     client.post("/pick-list/add", data={"item_id": ids["LF3000"]})                  # never counted
-    resp = client.post("/pick-list/clear", data={"remove_from_inventory": "1"}, follow_redirects=True)
+    resp = client.post("/pick-list/subtract",
+                       data={"item_id": [ids["BT223"], ids["P550"], ids["LF3000"]]}, follow_redirects=True)
     assert _on_hand(app) == {"BT223": 3, "P550": 0, "LF3000": None}
     assert _list(app, "editor") == {}
     text = resp.get_data(as_text=True)
     assert "worth a recount" in text and "LF3000" in text
 
 
-def test_remove_from_inventory_needs_permission(app, client):
+def test_subtract_leaves_unticked_parts_alone(app, client):
+    ids, _ = _make_parts(app)
+    login(client, "editor")
+    client.post("/pick-list/add", data={"item_id": ids["BT223"], "quantity": "2"})
+    client.post("/pick-list/add", data={"item_id": ids["P550"]})
+    client.post("/pick-list/subtract", data={"item_id": [ids["BT223"]]})
+    assert _on_hand(app)["BT223"] == 3 and _on_hand(app)["P550"] == 1
+    assert _list(app, "editor") == {"P550": 1}   # unticked part stays on the list
+    # Nothing ticked: nothing changes.
+    resp = client.post("/pick-list/subtract", data={}, follow_redirects=True)
+    assert b"Tick at least one part" in resp.data
+    assert _list(app, "editor") == {"P550": 1}
+
+
+def test_subtract_ignores_parts_not_on_your_list(app, client):
+    ids, _ = _make_parts(app)
+    login(client, "editor")
+    client.post("/pick-list/add", data={"item_id": ids["BT223"]})
+    client.post("/pick-list/subtract", data={"item_id": [ids["P550"]]})   # not on this user's list
+    assert _on_hand(app)["P550"] == 1
+    assert _list(app, "editor") == {"BT223": 1}
+
+
+def test_page_has_ticked_checkboxes_and_both_buttons(app, client):
+    ids, _ = _make_parts(app)
+    login(client, "editor")
+    client.post("/pick-list/add", data={"item_id": ids["BT223"]})
+    page = client.get("/pick-list/").get_data(as_text=True)
+    assert 'class="pick-select"' in page and "checked" in page
+    assert "Subtract Selected From Inventory" in page and "Clear List" in page
+
+
+def test_subtract_needs_permission(app, client):
     ids, _ = _make_parts(app)
     login(client, "viewer")
     client.post("/pick-list/add", data={"item_id": ids["BT223"], "quantity": "2"})
-    assert b"remove_from_inventory" not in client.get("/pick-list/").data
-    client.post("/pick-list/clear", data={"remove_from_inventory": "1"})
+    page = client.get("/pick-list/").data
+    assert b'class="pick-select"' not in page and b"Subtract Selected" not in page
+    client.post("/pick-list/subtract", data={"item_id": [ids["BT223"]]})
     assert _on_hand(app)["BT223"] == 5
     assert _list(app, "viewer") == {"BT223": 2}   # kept, since nothing was done
 
