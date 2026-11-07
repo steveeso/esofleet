@@ -970,7 +970,12 @@ a.tag:hover { text-decoration: none; background: #E0E2EC; }
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
+.pick-add-btn .grab-icon { display: block; }
 .pick-add-btn:hover { border-color: var(--color-primary); }
 .pick-add-btn.added { color: var(--color-green); border-color: var(--color-green); }
 .pick-add-form { display: flex; gap: 6px; align-items: center; }
@@ -1020,6 +1025,9 @@ a.tag:hover { text-decoration: none; background: #E0E2EC; }
 .glance-value { font-size: 15px; color: var(--color-primary); }
 .glance-sep { color: var(--color-ink-muted); margin: 0 2px; }
 .glance-extra { color: var(--color-ink); }
+.glance-list li { display: flex; align-items: flex-start; gap: 10px; }
+.glance-text { min-width: 0; padding-top: 2px; }
+.glance-pick-spacer { flex: 0 0 24px; }
 
 @media (max-width: 560px) {
   .glance-list li { padding-bottom: 6px; border-bottom: 1px solid var(--color-border); }

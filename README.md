@@ -167,7 +167,8 @@ Once you're logged in as an admin, you can add further users from the
 - **Equipment detail** — opens with a **Maintenance Summary**: one line per
   linked part or spec, e.g. "Oil filter: PH10890 – Aisle 04, Bank A, Shelf 2"
   or "Engine oil: 15W-40 – 16.1 L" (primary part number plus where it's
-  shelved, or the quantity this unit takes). Below that, a small left-hand
+  shelved, or the quantity this unit takes). Each linked part has a **hand** icon
+  beside it that grabs it for your pick list (in the quantity this unit takes). Below that, a small left-hand
   nav jumps between its three sections:
   - **Equipment Info** — the fields above, plus a meter history chart and
     log (every recorded reading is timestamped; the date defaults to today
@@ -235,7 +236,7 @@ Once you're logged in as an admin, you can add further users from the
   when. Editing needs the **Add & edit suppliers** permission (given to
   editors by default; viewers are read-only).
 - **Pick List** — everyone's own "shopping cart" of parts to pull. Add parts
-  with the **+** beside each part number on the Parts List, the **+ Pick list**
+  with the **hand** icon beside each part number on the Parts List, the **+ Pick list**
   button (with a quantity) on a part's page, or **+ All to pick list** on a
   unit's Maintenance Info (that unit's parts, in the quantity it takes).
   The Pick List page shows just part number, location and quantity, sorted

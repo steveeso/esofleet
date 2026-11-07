@@ -61,7 +61,7 @@
       {% set row_units = unit_numbers|join('|')|lower %}
       <tr data-search="{{ row_search }}" data-units="{{ row_units }}">
         <td class="parts-flag-col">{% if row.flagged %}<span class="spec-flag" title="Has a spec flagged for review">🚩</span>{% endif %}</td>
-        <td class="mono"><span class="pick-cell"><button type="button" class="pick-add-btn" data-item-id="{{ row.id }}" aria-label="Add {{ row.part_number }} to pick list" title="Add to pick list">+</button><a class="highlightable" href="{{ url_for('catalog.item_detail', item_id=row.id) }}">{{ row.part_number or '—' }}</a></span></td>
+        <td class="mono"><span class="pick-cell"><button type="button" class="pick-add-btn" data-item-id="{{ row.id }}" aria-label="Add {{ row.part_number }} to pick list" title="Add to pick list">{%- include "picklist/_grab_icon.html" -%}</button><a class="highlightable" href="{{ url_for('catalog.item_detail', item_id=row.id) }}">{{ row.part_number or '—' }}</a></span></td>
         <td class="highlightable">{{ row.type }}</td>
         <td class="highlightable">{{ row.location or '—' }}</td>
         <td class="mono">{{ row.quantity_on_hand if row.quantity_on_hand is not none else '—' }}</td>
@@ -207,9 +207,10 @@
 </script>
 <script>
 (function() {
-  // "+" adds one of the part to the pick list without leaving the page.
+  // The hand adds one of the part to the pick list without leaving the page.
   var addUrl = {{ url_for('picklist.add')|tojson }};
   document.querySelectorAll('.pick-add-btn').forEach(function(btn) {
+    var icon = btn.innerHTML;
     btn.addEventListener('click', function() {
       var body = new FormData();
       body.append('item_id', btn.dataset.itemId);
@@ -219,7 +220,7 @@
           if (!data.ok) throw new Error();
           btn.textContent = '✓';
           btn.classList.add('added');
-          setTimeout(function() { btn.textContent = '+'; btn.classList.remove('added'); }, 1200);
+          setTimeout(function() { btn.innerHTML = icon; btn.classList.remove('added'); }, 1200);
           var badge = document.querySelector('.nav-pick-count');
           if (badge) { badge.textContent = data.count; badge.hidden = false; }
         })

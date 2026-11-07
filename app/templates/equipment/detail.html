@@ -40,17 +40,29 @@
     {% for category in categories %}
     {% for c in items_by_category.get(category['id'], []) %}
     <li>
-      <span class="glance-label">{{ c['label'] }}:</span>
-      {% if c['value'] %}<a class="mono glance-value" href="{{ url_for('catalog.item_detail', item_id=c['id']) }}">{{ c['value'] }}</a>{% endif %}
-      {{ glance_extras(c['location'], c['link_quantity'], c['link_quantity_unit'], c['value']) }}
+      {# Same quantity rule as "+ All to pick list": a plain whole-number count, else 1
+         (5.7 liters of oil isn't a part count). #}
+      {% set pick_qty = c['link_quantity']|int if c['link_quantity'] and not c['link_quantity_unit'] and c['link_quantity'] == c['link_quantity']|int else 1 %}
+      <button type="button" class="pick-add-btn" data-item-id="{{ c['id'] }}" data-quantity="{{ pick_qty }}"
+              aria-label="Add {{ c['value'] or c['label'] }} to pick list"
+              title="Add to pick list{{ ' (×' ~ pick_qty ~ ')' if pick_qty != 1 }}">{%- include "picklist/_grab_icon.html" -%}</button>
+      <span class="glance-text">
+        <span class="glance-label">{{ c['label'] }}:</span>
+        {% if c['value'] %}<a class="mono glance-value" href="{{ url_for('catalog.item_detail', item_id=c['id']) }}">{{ c['value'] }}</a>{% endif %}
+        {{ glance_extras(c['location'], c['link_quantity'], c['link_quantity_unit'], c['value']) }}
+      </span>
     </li>
     {% endfor %}
     {% endfor %}
     {% for i in info_items %}
     <li>
-      <span class="glance-label">{{ i['label'] }}:</span>
-      {% if i['value'] %}<span class="mono glance-value">{{ i['value'] }}</span>{% endif %}
-      {{ glance_extras(none, i['quantity'], i['quantity_unit'], i['value']) }}
+      {# No button (not a catalog part), but keep the label lined up with the lines that have one. #}
+      <span class="glance-pick-spacer" aria-hidden="true"></span>
+      <span class="glance-text">
+        <span class="glance-label">{{ i['label'] }}:</span>
+        {% if i['value'] %}<span class="mono glance-value">{{ i['value'] }}</span>{% endif %}
+        {{ glance_extras(none, i['quantity'], i['quantity_unit'], i['value']) }}
+      </span>
     </li>
     {% endfor %}
   </ul>
@@ -387,4 +399,30 @@
   </div>
 </div>
 
+<script>
+(function() {
+  // The hand in the Maintenance Summary adds that part (in the quantity this unit takes)
+  // to your pick list without leaving the page.
+  var addUrl = {{ url_for('picklist.add')|tojson }};
+  document.querySelectorAll('.glance .pick-add-btn').forEach(function(btn) {
+    var icon = btn.innerHTML;
+    btn.addEventListener('click', function() {
+      var body = new FormData();
+      body.append('item_id', btn.dataset.itemId);
+      body.append('quantity', btn.dataset.quantity);
+      fetch(addUrl, {method: 'POST', headers: {'X-Requested-With': 'fetch'}, body: body})
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.ok) throw new Error();
+          btn.textContent = '✓';
+          btn.classList.add('added');
+          setTimeout(function() { btn.innerHTML = icon; btn.classList.remove('added'); }, 1200);
+          var badge = document.querySelector('.nav-pick-count');
+          if (badge) { badge.textContent = data.count; badge.hidden = false; }
+        })
+        .catch(function() { btn.textContent = '✗'; });
+    });
+  });
+})();
+</script>
 {% endblock %}
