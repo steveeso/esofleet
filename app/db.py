@@ -82,6 +82,7 @@ def _migrate(db):
     _ensure_column(db, "equipment", "engine_size", "TEXT")
     _ensure_column(db, "equipment", "engine_configuration", "TEXT")
     _ensure_column(db, "equipment", "factory_gvw", "TEXT")
+    _refresh_warehouse_location_text(db)
 
     db.commit()
 
@@ -104,6 +105,29 @@ def _ensure_column(db, table, column, decl):
     existing = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
     if column not in existing:
         db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+
+
+def _refresh_warehouse_location_text(db):
+    """Runs every startup (idempotent): for items placed with the warehouse
+    picker, rewrite the human-readable `location` from its machine
+    `location_code`, which is the source of truth. The text depends on
+    whether locations name their room (see warehouse.compose), so shelves
+    saved before that rule changed would otherwise disagree with ones saved
+    after. Codes that no longer match the floor plan are left alone, and
+    this isn't a user edit, so it isn't added to the location history."""
+    from . import warehouse
+
+    rows = db.execute(
+        "SELECT id, location, location_code FROM catalog_items WHERE location_code IS NOT NULL AND location_code != ''"
+    ).fetchall()
+    for row in rows:
+        parsed = warehouse.parse_code(row["location_code"])
+        if parsed is None:
+            continue
+        room, aisle, bank, shelf = parsed
+        human, _code = warehouse.compose(aisle, bank, shelf, room)
+        if human != row["location"]:
+            db.execute("UPDATE catalog_items SET location = ? WHERE id = ?", (human, row["id"]))
 
 
 def _backfill_enabled_fields(db):

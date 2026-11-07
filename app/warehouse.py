@@ -95,6 +95,13 @@ def room_ids():
     return list(ROOMS.keys())
 
 
+def populated_room_ids():
+    """Rooms that actually have shelving. A room registered ahead of being
+    measured (no structures yet) can't hold anything, so it doesn't count
+    when deciding whether locations need to name their room."""
+    return [rid for rid in room_ids() if ROOMS[rid]["structures"]]
+
+
 def room_options():
     """[{'id': 'main', 'label': 'Main Warehouse'}, ...] for a future room picker."""
     return [{"id": rid, "label": ROOMS[rid]["label"]} for rid in room_ids()]
@@ -165,10 +172,10 @@ def compose(aisle, bank, shelf, room=DEFAULT_ROOM):
         raise ValueError(f"Not a valid warehouse location: {room}:{aisle}-{bank}-{shelf}")
     shelf = int(shelf)
     code = f"{room}-{aisle}-{bank}-{shelf}"
-    if room == DEFAULT_ROOM and len(ROOMS) == 1:
-        # Only one room exists -- naming it in the human-readable string
-        # would just be noise. Once a second room is registered, every
-        # room (including this one) starts including its label.
+    if len(populated_room_ids()) <= 1:
+        # Only one room has any shelving -- naming it in the human-readable
+        # string would just be noise. Once a second room gets structures,
+        # every room (including this one) starts including its label.
         human = f"Aisle {aisle}, Bank {bank}, Shelf {shelf}"
     else:
         human = f"{ROOMS[room]['label']} — Aisle {aisle}, Bank {bank}, Shelf {shelf}"

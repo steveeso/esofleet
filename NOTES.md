@@ -119,12 +119,17 @@ decision is made that a future reader would otherwise have to guess at.
     it's so a bare "Aisle 23" (a felt-pen shelf label, a spreadsheet cell,
     something said out loud) identifies the floor without naming it.
     Aisle numbers are two digits in the code format (max 99).
-  - The human-readable `location` string omits the room name only while
-    exactly one room is registered (`compose()` checks `len(ROOMS)`).
-    Registering `gm_up` flipped that, so existing GM-Down locations were
-    rewritten once to "GM-Down — Aisle …" (logged in location history as
-    changed by "system"). Registering any further room later needs no
-    such rewrite — names are already included.
+  - The human-readable `location` string omits the room name while only
+    one room has shelving (`compose()` checks `populated_room_ids()`, i.e.
+    rooms with at least one structure). An empty room like `gm_up` doesn't
+    count, so GM-Down shelves read plain "Aisle 04, Bank A, Shelf 4". The
+    moment a second room gets structures, every location starts naming its
+    room. Registering `gm_up` originally flipped this on early, which left
+    shelves saved before and after with different text; because the code is
+    the source of truth, `db._refresh_warehouse_location_text` re-derives
+    `location` from `location_code` on every startup (a quiet re-render, not
+    a user edit, so it isn't added to location history). That also means
+    populating a second room later needs no manual rewrite.
   - Room ids can't contain a hyphen — `location_code` is
     `room-aisle-bank-shelf`, hyphen-delimited, so a hyphen inside the room
     id itself would make the format ambiguous to parse back apart. Use an
