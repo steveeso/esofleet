@@ -95,6 +95,20 @@ decision is made that a future reader would otherwise have to guess at.
   snapshots and were deliberately left alone. The default categories are
   seeded once (`0004_seed_supplier_categories`), so a category someone
   deletes stays deleted.
+- **OEM part numbers are alternates, not per-unit info items.** The filter
+  import used to save OEM Number/Brand as an "OEM part number" info item on
+  the unit, on the theory that the same filter can have a different OEM
+  cross-reference on different equipment. That threw away which part the
+  number belonged to, and made OEM numbers look different from every other
+  cross-reference. They're now ordinary `catalog_item_alternates` on the
+  part (note = the OEM brand, or "OEM" if the sheet has none). The trade-off
+  is that alternates belong to the shared part, so a part used by several
+  units lists every OEM number any of them recorded -- e.g. PH10890 shows
+  both FL2124S and FL-2015S (Ford). `scripts/oem_to_alternates.py` converted
+  the existing info items by re-pairing them against the spreadsheet row
+  (unit + OEM number -> Main P/N -> the part linked to that unit); anything
+  it couldn't pair with exactly one part was left as an info item for a
+  human to sort out rather than guessed at.
 - **New permissions need a grant migration.** `0003_seed_roles` only ran
   once, so a permission added to `permissions.py` later isn't on the
   existing `editor` role automatically. `_grant_new_permission()` in

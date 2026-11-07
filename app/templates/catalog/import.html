@@ -31,10 +31,9 @@
     Fram/Donaldson/Fleetguard/Baldwin/NAPA become alternate part numbers
     (skipped where they just repeat the primary number); a comma-separated
     <span class="mono">Other</span> cell becomes one alternate per value.
-    <span class="mono">OEM Number</span>/<span class="mono">OEM Brand</span>
-    are saved as a unit-specific info field rather than a shared alternate,
-    since the same filter often has a different OEM cross-reference on
-    different equipment. Rows for a unit that doesn't exist yet are skipped.
+    <span class="mono">OEM Number</span> becomes an alternate too, with the
+    <span class="mono">OEM Brand</span> as its note. Rows for a unit that
+    doesn't exist yet are skipped.
   </p>
 
   <form method="post" action="{{ url_for('catalog.import_preview') }}" enctype="multipart/form-data" style="margin-top: 18px;">

@@ -46,7 +46,8 @@ def _parse_filter_workbook(file_bytes, db):
     """Parse a filter-assignment spreadsheet (Unit / Main P/N / Type / OEM
     Number / OEM Brand / Fram / Donaldson / Fleetguard / Baldwin / NAPA /
     Other / Notes) into a plan of shared catalog categories/items/alternates
-    plus equipment links and per-unit OEM info fields. Doesn't write
+    plus equipment links (OEM Number/Brand become alternates like the
+    other brand columns). Doesn't write
     anything — safe to call repeatedly for preview."""
     try:
         wb = load_workbook(io.BytesIO(file_bytes), data_only=True, read_only=True)
@@ -85,7 +86,6 @@ def _parse_filter_workbook(file_bytes, db):
     categories = {}
     skipped_no_value = {}
     skipped_missing_unit = {}
-    oem_infos = []
 
     for row in rows_iter:
         unit = cell(row, "unit")
@@ -133,15 +133,13 @@ def _parse_filter_workbook(file_bytes, db):
 
         oem_number = cell(row, "oem_number")
         if oem_number and oem_number.upper() != value_key:
-            oem_brand = cell(row, "oem_brand")
-            oem_infos.append((unit, f"{oem_number} ({oem_brand})" if oem_brand else oem_number))
+            item["alternates"].add((cell(row, "oem_brand") or "OEM", oem_number))
 
     return {
         "error": None,
         "categories": categories,
         "skipped_no_value": skipped_no_value,
         "skipped_missing_unit": skipped_missing_unit,
-        "oem_infos": oem_infos,
     }
 
 
@@ -167,7 +165,6 @@ def _summarize_filter_plan(plan):
     return {
         "categories": categories, "total_items": total_items,
         "total_alternates": total_alternates, "total_links": total_links,
-        "total_oem_infos": len(plan["oem_infos"]),
     }
 
 
@@ -177,7 +174,7 @@ def _commit_filter_plan(plan, db):
 
     result = {
         "categories_created": 0, "items_created": 0, "items_reused": 0,
-        "alternates_created": 0, "links_created": 0, "oem_items_created": 0,
+        "alternates_created": 0, "links_created": 0,
     }
 
     for category_name, items in plan["categories"].items():
@@ -232,22 +229,6 @@ def _commit_filter_plan(plan, db):
                 )
                 if cur.rowcount:
                     result["links_created"] += 1
-
-    for unit, info_value in plan["oem_infos"]:
-        equipment_id = equipment_ids.get(unit)
-        if equipment_id is None:
-            continue
-        exists = db.execute(
-            "SELECT 1 FROM equipment_info_items WHERE equipment_id = ? AND label = ? AND value = ?",
-            (equipment_id, "OEM part number", info_value),
-        ).fetchone()
-        if exists:
-            continue
-        db.execute(
-            "INSERT INTO equipment_info_items (equipment_id, label, value) VALUES (?, ?, ?)",
-            (equipment_id, "OEM part number", info_value),
-        )
-        result["oem_items_created"] += 1
 
     db.commit()
     return result
@@ -1074,7 +1055,7 @@ def import_preview():
         flash(plan["error"], "error")
         return redirect(url_for("catalog.import_form"))
 
-    if not plan["categories"] and not plan["oem_infos"]:
+    if not plan["categories"]:
         flash("No usable filter rows found in that file.", "error")
         return redirect(url_for("catalog.import_form"))
 
@@ -1106,8 +1087,7 @@ def import_confirm():
     flash(
         f"Imported {result['items_created']} new catalog item{'' if result['items_created'] == 1 else 's'} "
         f"({result['items_reused']} already existed), {result['alternates_created']} alternate part numbers, "
-        f"{result['links_created']} equipment links, and {result['oem_items_created']} OEM info fields "
-        f"across {result['categories_created']} new categories.",
+        f"and {result['links_created']} equipment links across {result['categories_created']} new categories.",
         "success",
     )
     return redirect(url_for("catalog.index"))
