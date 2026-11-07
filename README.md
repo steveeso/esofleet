@@ -104,8 +104,7 @@ python run.py
 
 Then open **http://127.0.0.1:5000** in your browser. If you used `seed-db`,
 log in with `admin` / `changeme123` — **change this password immediately**
-(there's no self-service password change yet; ask whoever's helping you
-extend the app to add one, or update it directly in the database).
+using the **Password** link at the bottom of the sidebar.
 
 ## 5. Creating your first user without sample data
 
@@ -251,6 +250,8 @@ Once you're logged in as an admin, you can add further users from the
   part or unit page, or from the Reports page. Admins get a red count in the
   nav and can mark each one resolved with an optional reply; the sender sees
   the reply under Reports → Resolved.
+- **Password** (sidebar footer, everyone) — change your own password; it asks
+  for the current one first.
 - **Users (admin only)** — add/remove logins, reset passwords, and set each
   user's role. A user's role decides what they can do (add/edit/delete/import
   equipment, parts, maintenance, and stock counts), and an admin can tick those
@@ -290,9 +291,10 @@ Once you're logged in as an admin, you can add further users from the
   change needs to add a column to an existing table, that'll need its own
   `ALTER TABLE` step there too — `CREATE TABLE IF NOT EXISTS` alone won't
   add columns to a table that already exists.
-- **No self-service password change and no email/SMS alerts yet** — admins can
-  reset any user's password from the Users page, but users can't change their
-  own. These are natural next steps once the core shape feels right.
+- **No email/SMS alerts, and no "forgot password" flow yet** — users can
+  change their own password, and admins can reset anyone's from the Users
+  page, but a locked-out user has to ask an admin. These are natural next
+  steps once the core shape feels right.
 
 ## 8. Project structure
 

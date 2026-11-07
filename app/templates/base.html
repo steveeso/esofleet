@@ -43,7 +43,7 @@
       {% if g.user %}
       <div class="sidebar-footer">
         <div class="who">{{ g.user['username'] }}</div>
-        <div>{{ g.user['role']|capitalize }} · <a href="{{ url_for('auth.logout') }}">Log out</a></div>
+        <div>{{ g.user['role']|capitalize }} · <a href="{{ url_for('auth.change_password') }}">Password</a> · <a href="{{ url_for('auth.logout') }}">Log out</a></div>
       </div>
       {% endif %}
     </aside>

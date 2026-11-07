@@ -1,7 +1,7 @@
 import functools
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from .. import permissions
 from ..db import get_db
@@ -109,3 +109,34 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("auth.login"))
+
+
+@bp.route("/password", methods=("GET", "POST"))
+@login_required
+def change_password():
+    """Let anyone change their own password. The current password is asked
+    for so a walk-up to an unlocked screen can't lock the owner out."""
+    if request.method == "POST":
+        db = get_db()
+        current = request.form.get("current", "")
+        new = request.form.get("password", "")
+        user = db.execute("SELECT password_hash FROM users WHERE id = ?", (g.user["id"],)).fetchone()
+
+        if not check_password_hash(user["password_hash"], current):
+            flash("Your current password isn't right.", "error")
+        elif not new:
+            flash("Enter a new password.", "error")
+        elif new != request.form.get("confirm", ""):
+            flash("The two new passwords don't match.", "error")
+        elif new == current:
+            flash("Pick a password different from your current one.", "error")
+        else:
+            db.execute(
+                "UPDATE users SET password_hash = ? WHERE id = ?",
+                (generate_password_hash(new), g.user["id"]),
+            )
+            db.commit()
+            flash("Password changed.", "success")
+            return redirect(url_for("dashboard.index"))
+
+    return render_template("auth/password.html")
