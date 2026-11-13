@@ -287,6 +287,20 @@ decision is made that a future reader would otherwise have to guess at.
   grantable permission. A report keeps the sender's username as text and
   uses ON DELETE SET NULL for the part/unit, so it outlives either.
 
+## Wanted (not built yet)
+
+- **Parts List search should cover every alternate part number, not just
+  the displayed brand columns.** Today each row's search text
+  (`row_search` in `templates/catalog/parts_list.html`) is the part number,
+  type, location, unit numbers, and only the alternates whose brand is one
+  of the five `PARTS_LIST_BRANDS` columns (Baldwin, Donaldson, Fleetguard,
+  NAPA, Fram) -- see `_build_parts_list_rows()` in `routers/catalog.py`.
+  Alternates under any other brand (OEM numbers like CAT or Hino, "Other",
+  etc.) don't appear as columns and so can't be found by searching. Wanted:
+  include every alternate's value (and its brand/notes) in the search
+  text, while the columns stay as they are. Inventory Audit builds its rows
+  the same way, so it should get the same fix.
+
 ## Known gaps (not yet built, on purpose)
 
 - Admins can reset any user's password, but there's no self-service password
